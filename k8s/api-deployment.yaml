@@ -65,7 +65,19 @@ spec:
             - mountPath: /usr/src/vrising-api/config
               name: v-rising-api-config
               readOnly: true
+          readinessProbe:
+            httpGet:
+              port: 8080
+              path: /api/actuator/health
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              port: 8080
+              path: /api/actuator/health
+            initialDelaySeconds: 10
+            periodSeconds: 20
           resources:
             requests:
-              memory: "2000Mi"
+              memory: "1000Mi"
               cpu: "500m"
