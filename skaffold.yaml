@@ -14,6 +14,7 @@ deploy:
   kubectl:
     defaultNamespace: v-rising
     remoteManifests:
+      - k8s/rbac.yaml
       - k8s/api-env.yaml
       - k8s/api-deployment.yaml
       - k8s/api-service.yaml
@@ -27,6 +28,7 @@ profiles:
       kubectl:
         defaultNamespace: v-rising
         remoteManifests:
+          - k8s/rbac.yaml
           - k8s/api-env.yaml
           - k8s/api-deployment.yaml
           - k8s/api-service.yaml
