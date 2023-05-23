@@ -4,6 +4,8 @@ kind: Config
 metadata:
   name: v-rising-server
 build:
+  tagPolicy:
+    gitCommit: {}
   artifacts:
     - image: ghcr.io/hermesdj/v-rising-server
       context: .
