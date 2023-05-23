@@ -10,16 +10,17 @@ build:
     - image: ghcr.io/hermesdj/v-rising-server
       context: .
       docker: {}
+manifests:
+  rawYaml:
+    - k8s/rbac.yaml
+    - k8s/api-server-config.yaml
+    - k8s/api-env.yaml
+    - k8s/api-deployment.yaml
+    - k8s/api-service.yaml
+    - k8s/api-ingressroute.yaml
 deploy:
   kubectl:
     defaultNamespace: v-rising
-    remoteManifests:
-      - k8s/rbac.yaml
-      - k8s/api-server-config.yaml
-      - k8s/api-env.yaml
-      - k8s/api-deployment.yaml
-      - k8s/api-service.yaml
-      - k8s/api-ingressroute.yaml
 profiles:
   - name: prod
     activation:
@@ -28,10 +29,3 @@ profiles:
       kubeContext: preprod
       kubectl:
         defaultNamespace: v-rising
-        remoteManifests:
-          - k8s/rbac.yaml
-          - k8s/api-server-config.yaml
-          - k8s/api-env.yaml
-          - k8s/api-deployment.yaml
-          - k8s/api-service.yaml
-          - k8s/api-ingressroute.yaml
