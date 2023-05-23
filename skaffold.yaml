@@ -1,0 +1,20 @@
+# nonk8s
+apiVersion: skaffold/v2beta29
+kind: Config
+metadata:
+  name: v-rising-server
+build:
+  artifacts:
+    - image: ghcr.io/hermesdj/v-rising-server
+      context: .
+deploy:
+  kubectl:
+    defaultNamespace: v-rising
+profiles:
+  - name: prod
+    activation:
+      - kubeContext: preprod
+    deploy:
+      kubeContext: preprod
+      kubectl:
+        defaultNamespace: v-rising

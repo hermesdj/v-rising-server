@@ -1,0 +1,12 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRouteUDP
+metadata:
+  name: v-rising-query-ingressroute
+  namespace: v-rising
+spec:
+  entryPoints:
+    - queryport
+  routes:
+    - services:
+        - name: v-rising-service
+          port: 9877

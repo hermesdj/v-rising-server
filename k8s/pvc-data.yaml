@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: v-rising-data-pvc
+  namespace: v-rising
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: glusterfs
+  resources:
+    requests:
+      storage: 8Gi

@@ -1,0 +1,13 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: v-rising-rcon-ingressroute
+  namespace: v-rising
+spec:
+  entryPoints:
+    - rconport
+  routes:
+    - match: HostSNI(`*`)
+      services:
+        - name: v-rising-service
+          port: 25575

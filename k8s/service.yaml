@@ -1,0 +1,29 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: v-rising-service
+  namespace: v-rising
+spec:
+  selector:
+    app: v-rising-server
+  ports:
+    - protocol: UDP
+      name: localgameport
+      port: 9876
+      targetPort: 9876
+    - protocol: UDP
+      name: localqueryport
+      port: 9877
+      targetPort: 9877
+    - protocol: UDP
+      name: gameport
+      port: 27015
+      targetPort: 9876
+    - protocol: UDP
+      name: queryport
+      port: 27016
+      targetPort: 9877
+    - protocol: TCP
+      name: rconport
+      port: 25575
+      targetPort: 25575

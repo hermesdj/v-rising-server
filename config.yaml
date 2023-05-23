@@ -1,0 +1,20 @@
+api:
+  port: 8080
+server:
+  tz: Europe/Paris
+  exeFileName: VRisingServer.exe
+  serverPath: Z:\SteamLibrary\steamapps\common\VRising\VRising_Server
+  dataPath: ./server-data
+  name: 'V Rising Test Server'
+  saveName: 'world1'
+  logFile: './logs/server.log'
+  gamePort: 9876
+  queryPort: 9877
+log:
+  level: debug
+rcon:
+  active: true
+  host: 127.0.0.1
+  port: 25575
+  password: ***REMOVED***
+

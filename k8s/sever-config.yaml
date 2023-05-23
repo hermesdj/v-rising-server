@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: v-rising-api-config
+  namespace: v-rising
+data:
+  config.yaml: |
+    api:
+      port: 8080
+    server:
+      tz: Europe/Paris
+      exeFileName: VRisingServer.exe
+      serverPath: /mnt/vrising/server
+      dataPath: /mnt/vrising/persistentdata
+      name: 'Jay's Army V Rising Server'
+      saveName: 'b03b1aec-6f62-43e0-9e8b-4cb02fe4fb3f'
+      logFile: '/mnt/vrising/persistentdata/VRisingServer.log'
+      gamePort: 9876
+      queryPort: 9877
+    log:
+      level: debug
+    rcon:
+      active: true
+      host: 127.0.0.1
+      port: 25575
+      password: ***REMOVED***
