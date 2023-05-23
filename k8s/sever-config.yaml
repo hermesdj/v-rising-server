@@ -7,14 +7,17 @@ data:
   config.yaml: |
     api:
       port: 8080
+    k8s:
+      namespace: v-rising
+      container: v-rising-server-api
     server:
       tz: Europe/Paris
       exeFileName: VRisingServer.exe
       serverPath: /mnt/vrising/server
       dataPath: /mnt/vrising/persistentdata
       name: 'Jay's Army V Rising Server'
-      saveName: 'b03b1aec-6f62-43e0-9e8b-4cb02fe4fb3f'
-      logFile: '/mnt/vrising/persistentdata/VRisingServer.log'
+      saveName: 'world1'
+      logFile: '/mnt/vrising/persistentdata/VRisingServer2.log'
       gamePort: 9876
       queryPort: 9877
     log:

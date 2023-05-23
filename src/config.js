@@ -2,14 +2,16 @@ import path from "path";
 import url from "url";
 import yaml from "js-yaml";
 import fs from "fs";
+import {logger} from "./logger.js";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-const configPath = path.resolve(__dirname, '..', 'config.yaml');
+const configPath = path.resolve(__dirname, '..', 'config', 'config.yaml');
 
 let config = null;
 
 export const loadServerConfig = () => {
+    logger.info('Loading server config from path %s', configPath);
     const loadedYaml = yaml.load(fs.readFileSync(configPath, 'utf8'));
 
     config = {

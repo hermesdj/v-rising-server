@@ -1,5 +1,5 @@
 # nonk8s
-apiVersion: skaffold/v2beta29
+apiVersion: skaffold/v4beta2
 kind: Config
 metadata:
   name: v-rising-server
@@ -9,9 +9,15 @@ build:
   artifacts:
     - image: ghcr.io/hermesdj/v-rising-server
       context: .
+      docker: {}
 deploy:
   kubectl:
     defaultNamespace: v-rising
+    remoteManifests:
+      - k8s/api-env.yaml
+      - k8s/api-deployment.yaml
+      - k8s/api-service.yaml
+      - k8s/api-ingressroute.yaml
 profiles:
   - name: prod
     activation:
@@ -20,3 +26,8 @@ profiles:
       kubeContext: preprod
       kubectl:
         defaultNamespace: v-rising
+        remoteManifests:
+          - k8s/api-env.yaml
+          - k8s/api-deployment.yaml
+          - k8s/api-service.yaml
+          - k8s/api-ingressroute.yaml
