@@ -1,19 +1,34 @@
 api:
   port: 8080
+  auth:
+    returnURL: http://localhost:8080/api/auth/steam/return
+    realm: http://localhost:8080/
+  session:
+    secret: ***REMOVED***
+    params:
+      resave: false
+      saveUninitialized: false
+      name: v-rising-session.sid
 server:
+  runOnStartup: true
   tz: Europe/Paris
   exeFileName: VRisingServer.exe
   serverPath: Z:\SteamLibrary\steamapps\common\VRising\VRising_Server
   dataPath: ./server-data
-  name: 'V Rising Test Server'
-  saveName: 'world1'
-  logFile: './logs/server.log'
+  backupPath: Backups
+  compressBackupSaves: true
+  backupCount: 5
+  name: V Rising Test Server
+  saveName: world1
+  logFile: ./logs/server.log
   gamePort: 9876
   queryPort: 9877
+  defaultAdminList:
+    - 76561198005048084
 log:
   level: debug
 rcon:
-  active: true
+  active: false
   host: 127.0.0.1
   port: 25575
   password: ***REMOVED***

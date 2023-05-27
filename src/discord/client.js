@@ -56,7 +56,7 @@ client.on(GatewayDispatchEvents.InteractionCreate, async ({data: interaction, ap
     }
 
     try {
-        await command.execute(interaction, api);
+        await command.execute(interaction, api, config);
     } catch (err) {
         logger.error(err);
         if (interaction.replied || interaction.deferred) {
@@ -74,7 +74,7 @@ client.on(GatewayDispatchEvents.InteractionCreate, async ({data: interaction, ap
 });
 
 export const sendDiscordMessage = async (message) => {
-    logger.debug('Sending discord message: %s', message);
+    logger.debug('Sending discord message: "%s"', message);
     return api.channels.createMessage(
         config.discord.channelId,
         {

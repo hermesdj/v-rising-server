@@ -3,6 +3,9 @@ import {Tail} from 'tail';
 import {vRisingServer} from "./server.js";
 import {logger} from "../logger.js";
 import * as os from "os";
+import {ReplaySubject} from "rxjs";
+
+export const vRisingServerLogsSubject = new ReplaySubject(500);
 
 const regexpArray = [
     {
@@ -78,6 +81,18 @@ const regexpArray = [
         parse: (matches) => {
             vRisingServer.parseGameVersion(matches);
         }
+    },
+    {
+        regex: /Triggering AutoSave (\d*)!/g,
+        parse: (matches) => {
+            vRisingServer.parseLastAutoSave(matches);
+        }
+    },
+    {
+        regex: /Loaded Save:AutoSave_(\d*).(.*)/g,
+        parse: (matches) => {
+            vRisingServer.parseLoadedSave(matches);
+        }
     }
 ];
 
@@ -104,6 +119,7 @@ export const watchLogFileChanges = async (logFilePath) => {
             tail.on('line', (line) => {
                 const newLine = line.replace(/\r?\n/g, '\n');
                 buffer.push(newLine);
+                vRisingServerLogsSubject.next({time: new Date(), text: newLine});
                 for (const {regex, parse} of regexpArray) {
                     if (regex.test(newLine)) {
                         regex.lastIndex = 0;

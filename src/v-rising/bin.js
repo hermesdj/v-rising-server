@@ -1,15 +1,13 @@
 import * as os from "os";
 import {logger} from "../logger.js";
 import path from "path";
-import {spawn} from 'child_process';
+import {spawn, execFile, exec} from 'child_process';
 import {stopWatchingLog, watchLogFileChanges} from "./logs.js";
 import fs from "fs";
 import {waitForFile} from "./utils.js";
-import {vRisingServer} from "./server.js";
+import {connectRCon} from "./rcon.js";
 
-let serverProcess;
-
-export const startVRisingServerExecution = async (config) => {
+export const startVRisingServerExecution = async (config, vRisingServer) => {
     const platform = os.platform();
 
     const fullExeFilePath = path.join(config.server.serverPath, config.server.exeFileName);
@@ -23,64 +21,95 @@ export const startVRisingServerExecution = async (config) => {
     ];
 
     if (fs.existsSync(config.server.logFile)) {
+        logger.debug('Deleting server log file %s', config.server.logFile);
         fs.unlinkSync(config.server.logFile);
     }
 
     const options = {};
 
-    switch (platform) {
-        case 'win32':
-            logger.debug('Starting VRising server on win32 platform with file path %s and args %j', fullExeFilePath, args);
-            serverProcess = spawn(fullExeFilePath, args, options);
-
-            serverProcess.on('message', message => logger.info('Server Message', message));
-            serverProcess.on('exit', () => logger.info('Server process has been closed'));
-            break;
-        case 'linux':
-            logger.info('Starting VRising server on linux platform');
-            serverProcess = spawn('./start.sh', {
-                env: {
-                    ...process.env,
-                    SERVERNAME: config.server.name,
-                    TZ: config.server.tz,
-                    WORLDNAME: config.server.saveName,
-                    GAMEPORT: config.server.gamePort,
-                    QUERYPORT: config.server.queryPort
-                }
-            })
-            break;
-        default:
-            throw new Error('Cannot start VRising server on a platform that is not win32 or linux');
-    }
-
     return new Promise(async (resolve, reject) => {
+        switch (platform) {
+            case 'win32':
+                logger.debug('Starting VRising server on win32 platform with file path %s and args %j', fullExeFilePath, args);
+                vRisingServer.serverProcess = spawn(fullExeFilePath, args, options);
+                break;
+            case 'linux':
+                logger.info('Starting VRising server on linux platform');
+                vRisingServer.serverProcess = spawn('./start.sh', [], {
+                    env: {
+                        ...process.env,
+                        SERVERNAME: config.server.name,
+                        TZ: config.server.tz,
+                        WORLDNAME: config.server.saveName,
+                        GAMEPORT: config.server.gamePort,
+                        QUERYPORT: config.server.queryPort
+                    }
+                });
+                break;
+            default:
+                throw new Error('Cannot start VRising server on a platform that is not win32 or linux');
+        }
+
+        logger.info('Spawned server process with pid %d', vRisingServer.serverProcess.pid);
+        vRisingServer.serverProcess.stdout.on('data', (chunk) => logger.debug('Server process stdout : %s', chunk));
+        vRisingServer.serverProcess.stderr.on('data', (chunk) => logger.debug('Server process stderr : %s', chunk));
+        vRisingServer.serverProcess.on('message', message => logger.info('Server Message: %s', message));
+        vRisingServer.serverProcess.on('exit', async (code) => {
+            if (code !== 0) {
+                reject(new Error(`Command encountered exited with code ${code}`))
+            } else {
+                logger.info('Server process exited with no error');
+                if (!vRisingServer.serverInfo.isSaveLoaded) {
+                    reject(new Error(`Server process exited without loading a save !`));
+                }
+            }
+        });
+        vRisingServer.serverProcess.on("error", error => reject(error));
+
+        await vRisingServer.listenToServerProcess();
+
         await waitForFile(config.server.logFile);
+        logger.debug('Log file is ready to be parsed : %s', config.server.logFile);
         await watchLogFileChanges(config.server.logFile);
 
-        vRisingServer.once('ready', (serverInfo) => {
+        vRisingServer.once('ready', async (serverInfo) => {
+            if (config.rcon.active) {
+                await connectRCon(config);
+            }
             resolve(serverInfo);
         });
     });
 };
 
-export const stopVRisingServerExecution = async () => {
-    if (!serverProcess) return;
+export const stopVRisingServerExecution = async (vRisingServer) => {
+    if (!vRisingServer.serverProcess) return;
 
     logger.info('Stopping VRising server process');
 
-    return new Promise((resolve, reject) => {
-        serverProcess.once('exit', () => {
+    return new Promise(async (resolve, reject) => {
+        vRisingServer.serverProcess.once('exit', async () => {
+            if (os.platform() === "linux") {
+                await new Promise((ok, nok) => {
+                    logger.debug("Use stop_server.sh");
+                    execFile('./stop_server.sh', (err, data) => {
+                        if (err) nok(err);
+                        ok(data);
+                    });
+                })
+            }
+
             stopWatchingLog();
-            vRisingServer.stopServer();
+            vRisingServer.clearServerInfo();
+            vRisingServer.serverProcess = null;
             resolve(vRisingServer.getServerInfo());
         });
 
-        serverProcess.once('error', (err) => reject(err));
+        vRisingServer.serverProcess.once('error', (err) => reject(err));
 
-        serverProcess.kill();
+        vRisingServer.serverProcess.kill('SIGTERM');
     })
 };
 
-export const scheduledStop = async () => {
-
-};
+export const getServerProcessPid = async (vRisingServer) => {
+    return vRisingServer.retrieveProcessPid();
+}

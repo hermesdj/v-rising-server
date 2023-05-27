@@ -7,21 +7,36 @@ data:
   config.yaml: |
     api:
       port: 8080
+      auth:
+        returnURL: https://v-rising.jaysgaming.fr/api/auth/steam/return
+        realm: https://v-rising.jaysgaming.fr/
+      session:
+        secret: ***REMOVED***
+        params:
+            resave: false
+            saveUninitialized: false
+            name: v-rising-session.sid
     k8s:
       namespace: v-rising
       container: v-rising-server-api
     server:
+      runOnStartup: true
       tz: Europe/Paris
       exeFileName: VRisingServer.exe
       serverPath: /mnt/vrising/server
       dataPath: /mnt/vrising/persistentdata
-      name: 'Jay's Army V Rising Server'
-      saveName: 'world1'
-      logFile: '/mnt/vrising/persistentdata/VRisingServer2.log'
+      name: Jay's Army V Rising Server
+      saveName: world1
+      logFile: /mnt/vrising/persistentdata/VRising-Server.log
       gamePort: 9876
       queryPort: 9877
+      backupPath: Backups
+      backupCount: 5
+      compressBackupSaves: true
+      defaultAdminList: 
+          - 76561198005048084
     log:
-      level: debug
+      level: info
     rcon:
       active: true
       host: 127.0.0.1

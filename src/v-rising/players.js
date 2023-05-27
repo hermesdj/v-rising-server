@@ -73,6 +73,8 @@ export class VRisingPlayerManager extends EventEmitter {
 
         logger.debug('Player %d updated : %j', approvedUserIndex, player);
 
+        this.emit('player_connected', player);
+
         return player;
     }
 
@@ -86,6 +88,8 @@ export class VRisingPlayerManager extends EventEmitter {
         } else {
             logger.debug('Could not find player with approved user index %d', approvedUserIndex);
         }
+
+        this.emit('player_disconnected', approvedUserIndex);
     }
 
     getValidPlayerList() {

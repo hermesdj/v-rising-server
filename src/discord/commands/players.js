@@ -2,7 +2,6 @@ import {SlashCommandBuilder} from "@discordjs/builders";
 import {vRisingServer} from "../../v-rising/server.js";
 
 const playersCommand = new SlashCommandBuilder().setName('v-players').setDescription('Afficher la liste des joueurs actuellement connectés');
-
 export const data = playersCommand.toJSON();
 
 export const execute = async (interaction, api) => {

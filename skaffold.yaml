@@ -12,7 +12,9 @@ build:
       docker: {}
 manifests:
   rawYaml:
-    - k8s/rbac.yaml
+    - k8s/service-account.yaml
+    - k8s/role.yaml
+    - k8s/role-binding.yaml
     - k8s/api-server-config.yaml
     - k8s/api-env.yaml
     - k8s/api-deployment.yaml
