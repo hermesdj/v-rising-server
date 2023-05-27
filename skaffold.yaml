@@ -15,11 +15,19 @@ manifests:
     - k8s/service-account.yaml
     - k8s/role.yaml
     - k8s/role-binding.yaml
+    - k8s/pvc-data.yaml
+    - k8s/pvc-server.yaml
+    - k8s/api-pvc-data.yaml
     - k8s/api-server-config.yaml
     - k8s/api-env.yaml
     - k8s/api-deployment.yaml
     - k8s/api-service.yaml
     - k8s/api-ingressroute.yaml
+    - k8s/ingress-route-gameport.yaml
+    - k8s/ingress-route-localgameport.yaml
+    - k8s/ingress-route-localqueryport.yaml
+    - k8s/ingress-route-queryport.yaml
+    - k8s/ingress-route-rconport.yaml
 deploy:
   kubectl:
     defaultNamespace: v-rising

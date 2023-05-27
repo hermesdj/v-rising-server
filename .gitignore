@@ -4,3 +4,4 @@ logs/
 server-data/
 .idea
 public/*
+data/*.json

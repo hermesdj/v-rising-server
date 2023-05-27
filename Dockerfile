@@ -54,7 +54,7 @@ COPY package*.json .
 COPY start.sh .
 COPY launch_server.sh .
 COPY stop_server.sh .
-COPY ../v-rising-client/dist public/
+COPY public public/
 
 ENV V_RISING_MAX_HEALTH_MOD=1.0
 ENV V_RISING_MAX_HEALTH_GLOBAL_MOD=1.0

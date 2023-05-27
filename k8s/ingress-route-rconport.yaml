@@ -9,5 +9,5 @@ spec:
   routes:
     - match: HostSNI(`*`)
       services:
-        - name: v-rising-service
+        - name: v-rising-api-service
           port: 25575

@@ -9,4 +9,4 @@ spec:
   storageClassName: glusterfs
   resources:
     requests:
-      storage: 500Mo
+      storage: 500Mi

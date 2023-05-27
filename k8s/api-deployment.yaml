@@ -88,5 +88,5 @@ spec:
             periodSeconds: 20
           resources:
             requests:
-              memory: "1000Mi"
-              cpu: "500m"
+              memory: "16000Mi"
+              cpu: "3000m"
