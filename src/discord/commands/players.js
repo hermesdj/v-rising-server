@@ -5,7 +5,7 @@ const playersCommand = new SlashCommandBuilder().setName('v-players').setDescrip
 export const data = playersCommand.toJSON();
 
 export const execute = async (interaction, api) => {
-    const players = vRisingServer.playerManager.getValidPlayerList();
+    const players = vRisingServer.playerManager.getConnectedPlayers();
 
     let content = `Il y a actuellement ${players.length} joueurs connectés`;
 

@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import {EventEmitter} from 'events';
 import {logger} from "../logger.js";
-import {playerManager} from "./players.js";
+import {VRisingPlayerManager} from "./players.js";
 import os from "os";
 import lodash from "lodash";
 import {exec} from "child_process";
@@ -12,8 +12,8 @@ import {startVRisingServerExecution, stopVRisingServerExecution} from "./bin.js"
 import {sleep} from "./utils.js";
 import {getGameSettings, getHostSettings, writeGameSettings, writeHostSettings} from "./settings.js";
 import {getAdminList, getBanList, writeAdminList, writeBanList} from "./users.js";
-import path from "path";
 import {AutoSaveManager} from "./autosave.js";
+import {VRisingServerApiClient} from "./api.js";
 
 dayjs.extend(utc);
 
@@ -93,12 +93,77 @@ export class VRisingServer extends EventEmitter {
         this.lastAppliedAdminList = null;
         this.lastAppliedBanList = null;
 
-        this.playerManager = playerManager;
+        this.playerManager = new VRisingPlayerManager({logger});
         this.autoSaveManager = new AutoSaveManager(this);
+        this.apiClient = new VRisingServerApiClient(this.config);
+
+        this.regexpArray = [
+            {
+                regex: /Bootstrap - Time: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}), Version: (.*)/g,
+                parse: async (matches) => {
+                    this.parseServerInfo(matches);
+                }
+            },
+            {
+                regex: /Setting breakpad minidump AppID = (\d*)/g,
+                parse: async (matches) => {
+                    this.parseAppId(matches);
+                }
+            },
+            {
+                regex: /assigned identity steamid:([0-9]+)/g,
+                parse: async (matches) => {
+                    this.parseAssignedIdentity(matches);
+                }
+            },
+            {
+                regex: /SteamPlatformSystem - Server connected to Steam successfully!/g,
+                parse: () => {
+                    this.setConnectedToSteam();
+                }
+            },
+            {
+                regex: /Final ServerGameSettings Values:((.*|\n)*\n  }\n}\n)/gm,
+                parse: async (matches) => {
+                    console.log('Matched Server Game Settings', matches);
+                }
+            },
+            {
+                regex: /Server Setup Complete/g,
+                parse: () => {
+                    this.setSetupComplete();
+                }
+            },
+            {
+                regex: /PersistenceV2 - GameVersion of Loaded Save: (.*), Current GameVersion: (.*)/g,
+                parse: async (matches) => {
+                    this.parseGameVersion(matches);
+                }
+            },
+            {
+                regex: /PersistenceV2 - Finished Saving to '.*AutoSave_(\d*)\.(save|save\.gz)'/g,
+                parse: async (matches) => {
+                    this.parseLastAutoSave(matches);
+                }
+            },
+            {
+                regex: /Loaded Save:AutoSave_(\d*)\.(save|save\.gz)/g,
+                parse: async (matches) => {
+                    this.parseLoadedSave(matches);
+                }
+            },
+            {
+                regex: /HttpService - Receive Thread started./g,
+                parse: () => {
+                    this.apiClient.startPollingMetrics();
+                }
+            }
+        ];
     }
 
     setConfig(config) {
         this.config = config;
+        this.apiClient.updateOptions(config.server.api);
         this._updateServerInfo({
             serverName: config.server.name,
             saveName: config.server.saveName
@@ -222,10 +287,12 @@ export class VRisingServer extends EventEmitter {
                         reject(stderr);
                         return;
                     }
+                    logger.info('Parsed process pid from ps command : %d', stdout);
                     resolve(parseInt(stdout));
                 })
             })
         } else {
+            logger.warn('Unknown platform %s', os.platform());
             return null;
         }
     }
@@ -379,23 +446,77 @@ export class VRisingServer extends EventEmitter {
         return this.serverInfo.pid !== null;
     }
 
+    async onServerHostSettings(isInitialLoad = false, hostSettings = null) {
+        if (!hostSettings) {
+            hostSettings = await getHostSettings(this.config);
+        }
+
+        if (isInitialLoad) {
+            this.lastAppliedHostSettings = {...hostSettings};
+        }
+
+        this.hostSettings = {...hostSettings};
+
+        this.emit('loaded_host_settings', {current: this.hostSettings, lastApplied: this.lastAppliedHostSettings});
+        this.apiClient.updateApiConfig(hostSettings.API);
+    }
+
+    async onServerGameSettings(isInitialLoad = false, gameSettings = null) {
+        if (!gameSettings) {
+            gameSettings = await getGameSettings(this.config);
+        }
+
+        if (isInitialLoad) {
+            this.lastAppliedGameSettings = {...gameSettings};
+        }
+
+        this.gameSettings = {...gameSettings};
+
+        this.emit('loaded_game_settings', {current: this.gameSettings, lastApplied: this.lastAppliedGameSettings});
+    }
+
+    async onAdminList(isInitialLoad = false, adminList = null) {
+        if (!adminList) {
+            adminList = await getAdminList(this.config);
+        }
+
+        if (isInitialLoad) {
+            this.lastAppliedAdminList = [...adminList];
+        }
+
+        this.adminList = [...adminList];
+
+        this.emit('loaded_admin_list', {current: this.adminList, lastApplied: this.lastAppliedAdminList});
+
+        await this.playerManager.parseAdminList(this.adminList);
+    }
+
+    async onBanList(isInitialLoad = false, banList = null) {
+        if (!banList) {
+            banList = await getBanList(this.config);
+        }
+
+        if (isInitialLoad) {
+            this.lastAppliedBanList = [...banList];
+        }
+
+        this.banList = [...banList];
+
+        this.emit('loaded_ban_list', {current: this.banList, lastApplied: this.lastAppliedBanList});
+        await this.playerManager.parseBanList(this.banList);
+    }
+
     startServer(config = null, sendMessage = false) {
         if (config) {
             this.config = config;
+            this.apiClient.updateOptions(config.server.api);
         }
         return startVRisingServerExecution(this.config, this)
             .then(async () => {
-                this.lastAppliedHostSettings = await getHostSettings(this.config);
-                this.lastAppliedGameSettings = await getGameSettings(this.config);
-
-                this.hostSettings = {...this.lastAppliedHostSettings};
-                this.gameSettings = {...this.lastAppliedGameSettings};
-
-                this.lastAppliedAdminList = await getAdminList(this.config);
-                this.lastAppliedBanList = await getBanList(this.config);
-
-                this.adminList = [...this.lastAppliedAdminList];
-                this.banList = [...this.lastAppliedBanList];
+                await this.onServerHostSettings(true);
+                await this.onServerGameSettings(true);
+                await this.onAdminList(true);
+                await this.onBanList(true);
 
                 this.emit('server_started', {
                     serverInfo: this.serverInfo,
@@ -421,12 +542,15 @@ export class VRisingServer extends EventEmitter {
                     const message = this.messageMap.get('start').notifyDone(this);
                     await sendDiscordMessage(message);
                 }
+
+                this.apiClient.startPollingMetrics();
                 return this.serverInfo;
             });
     }
 
     stopServer(sendMessage = false) {
         if (!this.isRunning()) return this.serverInfo;
+        this.apiClient.stopPollingMetrics();
         return stopVRisingServerExecution(this)
             .then(async () => {
                 this.emit('server_stopped', {
@@ -457,6 +581,11 @@ export class VRisingServer extends EventEmitter {
     }
 
     async changeHostSettings(settings) {
+        if (lodash.isEqual(settings, this.hostSettings))
+            return {
+                current: this.hostSettings,
+                lastApplied: this.lastAppliedHostSettings
+            }
         this.hostSettings = settings;
         await writeHostSettings(this.config, settings);
         this.emit('changed_host_settings', {current: this.hostSettings, lastApplied: this.lastAppliedHostSettings});
@@ -464,6 +593,11 @@ export class VRisingServer extends EventEmitter {
     }
 
     async changeGameSettings(settings) {
+        if (lodash.isEqual(settings, this.gameSettings))
+            return {
+                current: this.gameSettings,
+                lastApplied: this.lastAppliedGameSettings
+            }
         this.gameSettings = settings;
         await writeGameSettings(this.config, settings);
         this.emit('changed_game_settings', {current: this.gameSettings, lastApplied: this.lastAppliedGameSettings});
@@ -481,6 +615,7 @@ export class VRisingServer extends EventEmitter {
         await writeAdminList(this.config, adminList);
         const result = {current: this.adminList, lastApplied: this.lastAppliedAdminList};
         this.emit('changed_admin_list', result);
+        await this.playerManager.parseAdminList(adminList);
         return result;
     }
 
@@ -490,16 +625,18 @@ export class VRisingServer extends EventEmitter {
                 current: this.banList,
                 lastApplied: this.lastAppliedBanList
             };
+
         this.banList = banList;
         await writeBanList(this.config, banList);
         const result = {current: this.banList, lastApplied: this.lastAppliedBanList};
         this.emit('changed_ban_list', result);
+        await this.playerManager.parseBanList(banList);
         return result;
     }
 
-    parseLastAutoSave([, autoSaveNumber]) {
+    parseLastAutoSave([, autoSaveNumber, extension]) {
         autoSaveNumber = parseInt(autoSaveNumber);
-        logger.debug('AutoSave %d detected !', autoSaveNumber);
+        logger.info('AutoSave %d detected !', autoSaveNumber);
         if (this.serverInfo.currentSaveNumber !== autoSaveNumber) {
             this._updateServerInfo({
                 currentSaveNumber: autoSaveNumber
@@ -510,7 +647,7 @@ export class VRisingServer extends EventEmitter {
                     config: this.config,
                     saveNumber: autoSaveNumber,
                     fileName: 'AutoSave_',
-                    extension: this.hostSettings.CompressSaveFiles === true ? 'save.gz' : 'save'
+                    extension
                 });
             }
         }
@@ -518,7 +655,7 @@ export class VRisingServer extends EventEmitter {
 
     parseLoadedSave([, saveNumber, extension]) {
         saveNumber = parseInt(saveNumber);
-        logger.debug('Save %d loaded with extension %s !', saveNumber, extension);
+        logger.info('Save %d loaded with extension %s !', saveNumber, extension);
         if (this.serverInfo.currentSaveNumber !== saveNumber) {
             this._updateServerInfo({
                 currentSaveNumber: saveNumber
@@ -533,6 +670,19 @@ export class VRisingServer extends EventEmitter {
                 });
             }
         }
+    }
+
+    async parseLogLine(line) {
+        const newLine = line.replace(/\r?\n/g, '\n');
+        for (const {regex, parse} of this.regexpArray) {
+            const matches = regex.exec(newLine);
+            if (matches && matches.length > 0) {
+                await parse(matches);
+            }
+            regex.lastIndex = 0;
+        }
+
+        await this.playerManager.parseLogLine(newLine);
     }
 }
 

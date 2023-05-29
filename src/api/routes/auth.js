@@ -44,7 +44,7 @@ router.post('/logout', (req, res) => {
 router.get('/', (req, res) => {
     const user = req.user;
     if (user) {
-        res.json({username: user.username});
+        res.json(user);
     } else {
         res.json({username: null});
     }

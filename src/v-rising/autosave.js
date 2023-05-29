@@ -16,7 +16,7 @@ export class AutoSaveManager extends EventEmitter {
     }
 
     _backupDir(config) {
-        return path.resolve(config.server.dataPath, config.server.backupPath, config.server.saveName);
+        return path.resolve(config.server.backupPath, config.server.saveName);
     }
 
     _saveDir(config) {
@@ -33,6 +33,7 @@ export class AutoSaveManager extends EventEmitter {
         const isCompressed = extension === 'save.gz';
 
         if (!fs.existsSync(saveFilePath)) {
+            //[10:18:29.500] ERROR (17): save file path does not exists : /mnt/vrising/persistentdata/Saves/v2/world1/AutoSave_427.save
             logger.error('save file path does not exists : %s', saveFilePath);
             return;
         }

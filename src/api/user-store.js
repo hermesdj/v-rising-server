@@ -17,19 +17,20 @@ export class UserStore {
     async authenticateSteamUser(profile) {
         const {_json} = profile;
         const {steamid: id, personaname: username} = _json;
-        logger.debug('Authenticating Steam User with ID %s and username %s', id, username);
+        logger.trace('Authenticating Steam User with ID %s and username %s', id, username);
         let user = this.db.get(id);
 
         if (!user) {
             // Check if user is admin
             const isAdmin = await this.isAdmin(id);
+            const isPlayer = await this.isPlayer(id);
 
-            if (!isAdmin) {
-                logger.warn('User with Steam ID %s tried to authenticate and is not an admin !', id);
+            user = {id, username, isAdmin, isPlayer};
+
+            if (!isAdmin && !isPlayer) {
+                logger.warn('User with Steam ID %s tried to authenticate and is not a player or an admin !', id);
                 return false;
             }
-
-            user = {id, username};
 
             await this.db.set(id, user);
         }
@@ -44,9 +45,13 @@ export class UserStore {
             adminList = await getAdminList(this.config);
         }
 
-        console.log(steamId, adminList);
-
         return adminList && Array.isArray(adminList) && adminList.some(id => lodash.isEqual(id, steamId));
+    }
+
+    async isPlayer(steamId) {
+        let playerList = vRisingServer.playerManager.players;
+
+        return playerList && Array.isArray(playerList) && playerList.some(player => lodash.isEqual(player.steamID, steamId));
     }
 
     serializeUser(user) {
@@ -65,7 +70,7 @@ class Users {
     }
 
     get(id) {
-        logger.debug('retrieve user with id %s', id);
+        logger.trace('retrieve user with id %s', id);
         const obj = this.chain.find({id}).cloneDeep().value();
         return obj ? obj.user : null;
     }

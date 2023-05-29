@@ -57,10 +57,10 @@ class Sessions {
     }
 
     get(sid) {
-        logger.debug('retrieve session with id %s', sid);
+        logger.trace('retrieve session with id %s', sid);
         const obj = this.chain.find({_id: sid}).cloneDeep().value();
         if (!obj) {
-            logger.debug('session with id %s does not exists', sid);
+            logger.trace('session with id %s does not exists', sid);
         }
         return obj ? obj.session : null;
     }
@@ -83,30 +83,30 @@ class Sessions {
         if (found.value()) {
             found.assign(obj).value();
             await this.db.write();
-            logger.debug('updated session with id %s and expires %d', sid, expires);
+            logger.trace('updated session with id %s and expires %d', sid, expires);
         } else {
             this.chain.push(obj).value();
             await this.db.write();
-            logger.debug('written new session with id %s', sid);
+            logger.trace('written new session with id %s', sid);
         }
     }
 
     async destroy(sid) {
         this.chain.remove({_id: sid}).value();
         await this.db.write();
-        logger.debug('destroyed session with id %s', sid);
+        logger.trace('destroyed session with id %s', sid);
     }
 
     async clear() {
         this.chain.remove().value();
         await this.db.write();
-        logger.debug('cleared session store');
+        logger.trace('cleared session store');
     }
 
     async purge() {
         const now = Date.now();
         this.chain.remove((obj) => now > obj.expires).value();
         await this.db.write();
-        logger.debug('purged session store');
+        logger.trace('purged session store');
     }
 }

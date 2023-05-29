@@ -1,0 +1,9 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-to-https
+  namespace: v-rising
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true

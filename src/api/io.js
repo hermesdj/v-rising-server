@@ -2,7 +2,6 @@ import {Server} from "socket.io";
 import passport from "passport";
 import {sessionMiddleware} from "./session.js";
 import {logger} from "../logger.js";
-import {vRisingServerLogsSubject} from "../v-rising/logs.js";
 import {vRisingServer} from "../v-rising/server.js";
 
 export let io;
@@ -28,8 +27,6 @@ export function startSocketIoServer(httpServer) {
         }
     });
 
-    const serverLogSubscriptions = new Map();
-
     io.on('connection', (socket) => {
         logger.debug('New socket connection %s', socket.id);
         const session = socket.request.session;
@@ -37,29 +34,8 @@ export function startSocketIoServer(httpServer) {
             cb(socket.request.user ? socket.request.user : {username: null});
         });
 
-        socket.on('subscribe server logs', () => {
-            if (serverLogSubscriptions.has(session.id)) {
-                serverLogSubscriptions.get(session.id).unsubscribe();
-                serverLogSubscriptions.delete(session.id);
-            }
-
-            const subscription = vRisingServerLogsSubject.subscribe(newLine => socket.emit('server log line', newLine));
-            serverLogSubscriptions.set(session.id, subscription);
-        });
-
-        socket.on('unsubscribe server logs', () => {
-            if (serverLogSubscriptions.has(session.id)) {
-                serverLogSubscriptions.get(session.id).unsubscribe();
-                serverLogSubscriptions.delete(session.id);
-            }
-        });
-
         socket.on('disconnect', (reason) => {
             logger.debug('Socket %s is disconnected because : %s', socket.id, reason);
-            if (serverLogSubscriptions.has(session.id)) {
-                serverLogSubscriptions.get(session.id).unsubscribe();
-                serverLogSubscriptions.delete(session.id);
-            }
         })
 
         logger.debug('saving sid %s in session %s', socket.id, session.id);
@@ -84,5 +60,6 @@ export function startSocketIoServer(httpServer) {
     vRisingServer.on('loaded_save', (info) => io.emit('loaded save', info));
     vRisingServer.on('auto_save', (info) => io.emit('auto save', info));
     vRisingServer.playerManager.on('player_connected', (player) => io.emit('player connected', player));
-    vRisingServer.playerManager.on('player_disconnected', (id) => io.emit('player disconnected', id));
+    vRisingServer.playerManager.on('player_disconnected', (player) => io.emit('player disconnected', player));
+    vRisingServer.playerManager.on('player_updated', (player) => io.emit('player updated', player));
 }

@@ -15,7 +15,7 @@ server:
   exeFileName: VRisingServer.exe
   serverPath: Z:\SteamLibrary\steamapps\common\VRising\VRising_Server
   dataPath: ./server-data
-  backupPath: Backups
+  backupPath: ./server-data/Backups
   compressBackupSaves: true
   backupCount: 5
   name: V Rising Test Server
@@ -25,6 +25,9 @@ server:
   queryPort: 9877
   defaultAdminList:
     - 76561198005048084
+  api:
+    metrics:
+      pollingInterval: 30000
 log:
   level: debug
 rcon:

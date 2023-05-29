@@ -49,6 +49,9 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(dirname, '..', '..', 'public')));
 
 app.use('/api', router);
+app.get('*', function (request, res) {
+    res.sendFile(path.resolve(dirname, '..', '..', 'public', 'index.html'));
+});
 
 app.use((err, req, res, next) => {
     res.status(err.status || 500);

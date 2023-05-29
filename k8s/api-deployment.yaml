@@ -31,6 +31,9 @@ spec:
         - name: v-rising-api-data
           persistentVolumeClaim:
             claimName: v-rising-api-data-pvc
+        - name: v-rising-backup
+          persistentVolumeClaim:
+            claimName: v-rising-server-backup-pvc
       containers:
         - name: v-rising-server-api
           image: ghcr.io/hermesdj/v-rising-server
@@ -73,6 +76,9 @@ spec:
               readOnly: true
             - mountPath: /usr/src/v-rising-api/data
               name: v-rising-api-data
+              readOnly: false
+            - mountPath: /mnt/vrising/backups
+              name: v-rising-backup
               readOnly: false
           readinessProbe:
             httpGet:

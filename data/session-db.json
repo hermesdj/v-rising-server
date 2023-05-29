@@ -1,7 +1,7 @@
 {
   "sessions": [
     {
-      "_id": "21fac995-8f14-46e6-becf-43c33116e236",
+      "_id": "89241634-76d4-4def-9653-bf7bbe5ecaeb",
       "session": {
         "cookie": {
           "originalMaxAge": null,
@@ -12,9 +12,9 @@
         "passport": {
           "user": "76561198005048084"
         },
-        "socketId": "fdl9um4OL2zcjhdDAAAB"
+        "socketId": "krPpKLt6qBZGmCH_AAAD"
       },
-      "expires": 1685301050272
+      "expires": 1685461314454
     }
   ]
 }

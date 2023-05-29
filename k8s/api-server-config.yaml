@@ -8,8 +8,8 @@ data:
     api:
       port: 8080
       auth:
-        returnURL: https://v-rising.jaysgaming.fr/api/auth/steam/return
-        realm: https://v-rising.jaysgaming.fr/
+        returnURL: http://v-rising.jaysgaming.fr/api/auth/steam/return
+        realm: http://v-rising.jaysgaming.fr/
       session:
         secret: ***REMOVED***
         params:
@@ -30,7 +30,7 @@ data:
       logFile: /mnt/vrising/persistentdata/VRising-Server.log
       gamePort: 9876
       queryPort: 9877
-      backupPath: Backups
+      backupPath: /mnt/vrising/backups
       backupCount: 5
       compressBackupSaves: true
       defaultAdminList: 

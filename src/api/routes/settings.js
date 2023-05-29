@@ -1,6 +1,6 @@
 import Router from "express-promise-router";
 import {getGameSettings, getHostSettings} from "../../v-rising/settings.js";
-import {ensureAuthenticated} from "./utils.js";
+import {ensureAdmin} from "./utils.js";
 import {vRisingServer} from "../../v-rising/server.js";
 
 const router = Router();
@@ -48,13 +48,13 @@ router.get('/game', async (req, res) => {
     res.json(gameSettings);
 });
 
-router.post('/host', ensureAuthenticated, async (req, res) => {
+router.post('/host', ensureAdmin, async (req, res) => {
     const hostSettings = req.body;
     const result = await vRisingServer.changeHostSettings(hostSettings);
     res.json(result);
 });
 
-router.post('/game', ensureAuthenticated, async (req, res) => {
+router.post('/game', ensureAdmin, async (req, res) => {
     const gameSettings = req.body;
     const result = await vRisingServer.changeGameSettings(gameSettings);
     res.json(result);

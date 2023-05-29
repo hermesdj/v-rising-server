@@ -1,11 +1,18 @@
 import * as os from "os";
 import {logger} from "../logger.js";
 import path from "path";
-import {spawn, execFile, exec} from 'child_process';
+import {spawn, execFile} from 'child_process';
 import {stopWatchingLog, watchLogFileChanges} from "./logs.js";
 import fs from "fs";
 import {waitForFile} from "./utils.js";
 import {connectRCon} from "./rcon.js";
+import pino from 'pino';
+import pretty from 'pino-pretty';
+
+const processLogStream = pretty({
+    colorize: true,
+    destination: './logs/process-logs.log'
+});
 
 export const startVRisingServerExecution = async (config, vRisingServer) => {
     const platform = os.platform();
@@ -26,6 +33,8 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
     }
 
     const options = {};
+
+    const processLogger = pino({level: config.log.level}, processLogStream);
 
     return new Promise(async (resolve, reject) => {
         switch (platform) {
@@ -51,10 +60,13 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
         }
 
         logger.info('Spawned server process with pid %d', vRisingServer.serverProcess.pid);
-        vRisingServer.serverProcess.stdout.on('data', (chunk) => logger.debug('Server process stdout : %s', chunk));
-        vRisingServer.serverProcess.stderr.on('data', (chunk) => logger.debug('Server process stderr : %s', chunk));
+
+        vRisingServer.serverProcess.stdout.on('data', (chunk) => processLogger.info('%s', chunk));
+        vRisingServer.serverProcess.stderr.on('data', (chunk) => processLogger.error('%s', chunk));
+
         vRisingServer.serverProcess.on('message', message => logger.info('Server Message: %s', message));
         vRisingServer.serverProcess.on('exit', async (code) => {
+            vRisingServer.apiClient.stopPollingMetrics();
             if (code !== 0) {
                 reject(new Error(`Command encountered exited with code ${code}`))
             } else {

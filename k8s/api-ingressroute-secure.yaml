@@ -1,16 +1,16 @@
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: v-rising-api-ingressroute
+  name: v-rising-api-ingressroute-secure
   namespace: v-rising
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`v-rising.jaysgaming.fr`)
       kind: Rule
-      middlewares:
-        - name: redirect-to-https
       services:
         - name: v-rising-api-service
           port: 8080
+  tls:
+    certResolver: jaysgaming

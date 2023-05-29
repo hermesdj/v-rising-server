@@ -3,98 +3,6 @@ import {Tail} from 'tail';
 import {vRisingServer} from "./server.js";
 import {logger} from "../logger.js";
 import * as os from "os";
-import {ReplaySubject} from "rxjs";
-
-export const vRisingServerLogsSubject = new ReplaySubject(500);
-
-const regexpArray = [
-    {
-        regex: /Bootstrap - Time: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}), Version: (.*)/g,
-        parse: (matches) => {
-            vRisingServer.parseServerInfo(matches);
-        }
-    },
-    {
-        regex: /SteamPlatformSystem -  Setting Product and Modir: V Rising\n/g,
-        parse: (matches, buffer) => {
-            console.log('Matched steam platform system, content is %d lines', buffer.length);
-            const content = buffer.join('\n');
-            const regex = /Loaded ServerHostSettings:((.*|\n)*\n  }\n}\n)/gm;
-
-            if (regex.test(content)) {
-                regex.lastIndex = 0;
-                matches = regex.exec(content);
-                console.log('Matched ServerHostSettings', matches);
-            }
-        }
-    },
-    {
-        regex: /Setting breakpad minidump AppID = (\d*)/g,
-        parse: (matches) => {
-            vRisingServer.parseAppId(matches);
-        }
-    },
-    {
-        regex: /assigned identity steamid:([0-9]+)/g,
-        parse: (matches) => {
-            vRisingServer.parseAssignedIdentity(matches);
-        }
-    },
-    {
-        regex: /SteamPlatformSystem - Server connected to Steam successfully!/g,
-        parse: () => {
-            vRisingServer.setConnectedToSteam();
-        }
-    },
-    {
-        regex: /Final ServerGameSettings Values:((.*|\n)*\n  }\n}\n)/gm,
-        parse: (matches) => {
-            console.log('Matched Server Game Settings', matches);
-        }
-    },
-    {
-        regex: /Server Setup Complete/g,
-        parse: () => {
-            vRisingServer.setSetupComplete();
-        }
-    },
-    {
-        regex: /NetEndPoint '{Steam (\d*)}' .* approvedUserIndex: (\d*) HasLocalCharacter: (True|False) .* PlatformId: (\d*) UserIndex: (\d*) ShouldCreateCharacter: (True|False) IsAdmin: (True|False)/g,
-        parse: (matches) => {
-            vRisingServer.playerManager.parseDetectedPlayer(matches);
-        }
-    },
-    {
-        regex: /User '{Steam (\d*)}' '(\d*)', approvedUserIndex: (\d*), Character: '(.*)' connected as ID '(.*)', Entity '(.*)'./g,
-        parse: (matches) => {
-            vRisingServer.playerManager.parsePlayerInfo(matches);
-        }
-    },
-    {
-        regex: /User '{Steam (\d*)}' disconnected. approvedUserIndex: (\d*) Reason: (.*)/g,
-        parse: (matches) => {
-            vRisingServer.playerManager.parseDisconnectedPlayer(matches);
-        }
-    },
-    {
-        regex: /PersistenceV2 - GameVersion of Loaded Save: (.*), Current GameVersion: (.*)/g,
-        parse: (matches) => {
-            vRisingServer.parseGameVersion(matches);
-        }
-    },
-    {
-        regex: /Triggering AutoSave (\d*)!/g,
-        parse: (matches) => {
-            vRisingServer.parseLastAutoSave(matches);
-        }
-    },
-    {
-        regex: /Loaded Save:AutoSave_(\d*).(.*)/g,
-        parse: (matches) => {
-            vRisingServer.parseLoadedSave(matches);
-        }
-    }
-];
 
 let tail = null;
 
@@ -114,19 +22,8 @@ export const watchLogFileChanges = async (logFilePath) => {
                 logger
             });
 
-            let buffer = [];
-
-            tail.on('line', (line) => {
-                const newLine = line.replace(/\r?\n/g, '\n');
-                buffer.push(newLine);
-                vRisingServerLogsSubject.next({time: new Date(), text: newLine});
-                for (const {regex, parse} of regexpArray) {
-                    if (regex.test(newLine)) {
-                        regex.lastIndex = 0;
-                        parse(regex.exec(newLine), buffer);
-                    }
-                    regex.lastIndex = 0;
-                }
+            tail.on('line', async (line) => {
+                await vRisingServer.parseLogLine(line);
             });
 
             tail.on('error', (err) => {

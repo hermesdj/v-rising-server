@@ -29,6 +29,7 @@
     "lodash": "^4.17.21",
     "lowdb": "^6.0.1",
     "mkdirp": "^3.0.1",
+    "parse-prometheus-text-format": "^1.1.1",
     "passport": "^0.6.0",
     "passport-local": "^1.0.0",
     "passport-steam": "^1.0.17",

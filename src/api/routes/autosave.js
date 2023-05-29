@@ -1,5 +1,5 @@
 import Router from "express-promise-router";
-import {ensureAuthenticated} from "./utils.js";
+import {ensureAdmin, ensureAuthenticated} from "./utils.js";
 import {vRisingServer} from "../../v-rising/server.js";
 import {logger} from "../../logger.js";
 import fs from "fs";
@@ -12,7 +12,23 @@ router.get('/backups', ensureAuthenticated, async (req, res) => {
     res.json({backupFileNames: fileNames});
 });
 
-router.post('/schedule-restore-backup', ensureAuthenticated, async (req, res) => {
+router.get('/backups/:fileName', (req, res) => {
+     const {fileName} = req.params;
+     const backupDir = vRisingServer.autoSaveManager._backupDir(req.config);
+     const filePath = path.join(backupDir, fileName);
+
+     if(!fs.existsSync(filePath)){
+         res.status(404).json({message: 'Backup not found'});
+         return;
+     }
+
+     res.attachment(fileName);
+
+     const readStream = fs.createReadStream(filePath);
+     readStream.pipe(res);
+});
+
+router.post('/schedule-restore-backup', ensureAdmin, async (req, res) => {
     const {backupFileName, delay} = req.body;
     logger.info('Received scheduled backup restore with delay %d minutes and file name %s', delay, backupFileName);
 

@@ -26,7 +26,7 @@ updateSteam() {
   mkdir -p /root/.steam 2>/dev/null
   chmod -R 777 /root/.steam 2>/dev/null
 
-  /usr/bin/steamcmd +force_install_dir "$s" +login anonymous +app_update 1829350 validate +quit
+  /usr/bin/steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 validate +quit
 }
 
 removeX0Lock() {

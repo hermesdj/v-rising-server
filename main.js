@@ -7,12 +7,14 @@ import {initVRisingServerSettings} from "./src/v-rising/settings.js";
 import {vRisingServer} from "./src/v-rising/server.js";
 import {db as sessionDb} from "./src/api/session.js";
 import {db as userDb} from "./src/api/passport.js";
+import {db as playerDb} from "./src/v-rising/players.js";
 import {initVRisingUsers} from "./src/v-rising/users.js";
 
 (async () => {
     const config = loadServerConfig();
     await sessionDb.read();
     await userDb.read();
+    await playerDb.read();
     logger.info('Starting VRising Server API');
     const httpServer = await startExpressApi(config);
     logger.info('Init Discord Bot');

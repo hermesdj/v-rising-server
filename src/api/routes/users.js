@@ -1,7 +1,7 @@
 import Router from "express-promise-router";
 import {vRisingServer} from "../../v-rising/server.js";
 import {getAdminList, getBanList} from "../../v-rising/users.js";
-import {ensureAuthenticated} from "./utils.js";
+import {ensureAdmin} from "./utils.js";
 
 const router = Router();
 
@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
     })
 });
 
-router.post('/', ensureAuthenticated, async (req, res) => {
+router.post('/', ensureAdmin, async (req, res) => {
     const {adminList, banList} = req.body;
 
     if (!Array.isArray(adminList)) {
