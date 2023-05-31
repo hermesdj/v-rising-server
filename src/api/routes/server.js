@@ -44,4 +44,25 @@ router.post('/stop-scheduled-operation', ensureAdmin, async (req, res) => {
     res.json(serverInfo);
 });
 
+router.post('/send-announce', ensureAdmin, async (req, res) => {
+    if (!vRisingServer.rConClient.isEnabled()) {
+        res.status(404).json({success: false, message: 'RCon is not enabled !'});
+    } else if (!vRisingServer.rConClient.isConnected) {
+        res.status(404).json({success: false, message: 'RCon is not connected !'});
+    } else {
+        const {message} = req.body;
+        if (!message || message.length === 0) {
+            res.status(400).json({success: false, message: 'Message body is empty !'});
+        } else {
+            try {
+                const success = await vRisingServer.rConClient.sendAnnounceToVRisingServer(message);
+                res.json({success});
+            } catch (err) {
+                console.error(err);
+                res.status(400).json({success: false, message: err.message});
+            }
+        }
+    }
+});
+
 export default router;

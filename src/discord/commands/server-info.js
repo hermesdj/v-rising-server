@@ -10,12 +10,12 @@ export const execute = async (interaction, api) => {
     let content;
     if (vRisingServer.isRunning()) {
         if (serverInfo.scheduledOperation) {
-            content = `Une opération ${serverInfo.scheduledOperation.type === 'restart' ? 'de redémarrage' : "d'arrêt"} a été planifiée pour dans ${serverInfo.scheduledOperation.remainingTime / 60000} minute(s)`;
+            content = `[${vRisingServer.config.server.name}] Une opération ${serverInfo.scheduledOperation.type === 'restart' ? 'de redémarrage' : "d'arrêt"} a été planifiée pour dans ${serverInfo.scheduledOperation.remainingTime / 60000} minute(s)`;
         } else {
-            content = `Date: ${dayjs(serverInfo.time).format('DD/MM/YYYY HH:mm:ss')}, Version : ${serverInfo.version}, Connecté à Steam : ${serverInfo.connectedToSteam ? 'Oui' : 'Non'}, Setup terminé: ${serverInfo.serverSetupComplete ? 'Oui' : 'Non'}, ID Steam : ${serverInfo.steamID}`;
+            content = `[${vRisingServer.config.server.name}] Date: ${dayjs(serverInfo.time).format('DD/MM/YYYY HH:mm:ss')}, Version : ${serverInfo.version}, Connecté à Steam : ${serverInfo.connectedToSteam ? 'Oui' : 'Non'}, Setup terminé: ${serverInfo.serverSetupComplete ? 'Oui' : 'Non'}, ID Steam : ${serverInfo.steamID}`;
         }
     } else {
-        content = `Le serveur V Rising n'est pas activé !`;
+        content = `[${vRisingServer.config.server.name}] Le serveur V Rising n'est pas activé !`;
     }
     await api.interactions.reply(interaction.id, interaction.token, {
         content

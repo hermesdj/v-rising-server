@@ -8,7 +8,7 @@ const streams = [
     {
         level: config.log.level,
         stream: pretty({
-            colorize: process.env.NODE_ENV,
+            colorize: true,
             destination: './logs/api-logs.log'
         }),
     },

@@ -3,17 +3,16 @@ import utc from 'dayjs/plugin/utc.js';
 import {EventEmitter} from 'events';
 import {logger} from "../logger.js";
 import {VRisingPlayerManager} from "./players.js";
-import os from "os";
 import lodash from "lodash";
-import {exec} from "child_process";
 import {sendDiscordMessage} from "../discord/index.js";
-import {sendAnnounceToVRisingServer, sendRestartAnnounceToVRisingServer} from "./rcon.js";
+import {VRisingRConClient} from "./rcon.js";
 import {startVRisingServerExecution, stopVRisingServerExecution} from "./bin.js";
 import {sleep} from "./utils.js";
 import {getGameSettings, getHostSettings, writeGameSettings, writeHostSettings} from "./settings.js";
 import {getAdminList, getBanList, writeAdminList, writeBanList} from "./users.js";
 import {AutoSaveManager} from "./autosave.js";
 import {VRisingServerApiClient} from "./api.js";
+import {LogWatcher} from "./logs.js";
 
 dayjs.extend(utc);
 
@@ -80,22 +79,30 @@ export class VRisingServer extends EventEmitter {
             notifyDone: ({serverInfo}) => `Le serveur V Rising a redémarré. Son nouveau SteamID est ${serverInfo.steamID}.`
         });
 
-        this.config = {};
-        this.hostSettings = null;
-        this.gameSettings = null;
+        this.config = null;
+        this.logWatcher = null;
+        this.hostSettings = {
+            current: null,
+            lastApplied: null
+        };
+        this.gameSettings = {
+            current: null,
+            lastApplied: null
+        };
 
-        this.lastAppliedHostSettings = null;
-        this.lastAppliedGameSettings = null;
-
-        this.adminList = null;
-        this.banList = null;
-
-        this.lastAppliedAdminList = null;
-        this.lastAppliedBanList = null;
+        this.adminList = {
+            current: null,
+            lastApplied: null
+        };
+        this.banList = {
+            current: null,
+            lastApplied: null
+        };
 
         this.playerManager = new VRisingPlayerManager({logger});
         this.autoSaveManager = new AutoSaveManager(this);
         this.apiClient = new VRisingServerApiClient(this.config);
+        this.rConClient = new VRisingRConClient();
 
         this.regexpArray = [
             {
@@ -157,8 +164,36 @@ export class VRisingServer extends EventEmitter {
                 parse: () => {
                     this.apiClient.startPollingMetrics();
                 }
+            },
+            {
+                regex: /\[rcon] Started listening on (.*), Password is: "(.*)"/g,
+                parse: async ([, , password]) => {
+                    await this._connectRConClient(password);
+                }
             }
-        ];
+        ]
+    }
+
+    async _connectRConClient(password) {
+        const {Rcon: serverConfig} = this.hostSettings.current ? this.hostSettings.current : {};
+        const {rcon: apiConfig} = this.config;
+
+        if (!password) {
+            if (serverConfig && serverConfig.Password) {
+                password = serverConfig.Password;
+            } else {
+                password = apiConfig.password;
+            }
+        }
+
+        const config = {
+            enabled: true,
+            host: apiConfig.host || 'localhost',
+            port: serverConfig ? serverConfig.Port : apiConfig.port,
+            password
+        };
+
+        return this.rConClient.connect(config);
     }
 
     setConfig(config) {
@@ -273,28 +308,7 @@ export class VRisingServer extends EventEmitter {
     }
 
     async retrieveProcessPid() {
-        if (os.platform() === 'win32') return this.serverProcess ? this.serverProcess.pid : null
-        else if (os.platform() === 'linux') {
-            return new Promise((resolve, reject) => {
-                exec("ps -A | grep 'VRising' | awk '{print $1}'", (error, stdout, stderr) => {
-                    if (error) {
-                        logger.error('Could not retrieve VRisin process pid : %s', error.message);
-                        reject(error);
-                        return;
-                    }
-                    if (stderr) {
-                        logger.error('Could not retrieve VRisin process pid : %s', stderr);
-                        reject(stderr);
-                        return;
-                    }
-                    logger.info('Parsed process pid from ps command : %d', stdout);
-                    resolve(parseInt(stdout));
-                })
-            })
-        } else {
-            logger.warn('Unknown platform %s', os.platform());
-            return null;
-        }
+        return this.serverProcess ? this.serverProcess.pid : null;
     }
 
     /**
@@ -358,7 +372,7 @@ export class VRisingServer extends EventEmitter {
                 clearInterval(this.interval);
                 // Execute scheduled operation
                 const executionMessage = this.messageMap.get(type).notifyExecution(this);
-                await sendAnnounceToVRisingServer(executionMessage);
+                await this.rConClient.sendAnnounceToVRisingServer(executionMessage);
                 this.emit('operation_execute', this.serverInfo);
 
                 try {
@@ -373,7 +387,7 @@ export class VRisingServer extends EventEmitter {
 
                 if (type === 'restore-backup') {
                     const {fileName} = options;
-                    const restoreSuccess = await this.autoSaveManager.restoreBackup(this.config, fileName, this.hostSettings.CompressSaveFiles, this.serverInfo.currentSaveNumber);
+                    const restoreSuccess = await this.autoSaveManager.restoreBackup(this.config, fileName, this.hostSettings.current.CompressSaveFiles, this.serverInfo.currentSaveNumber);
 
                     if (!restoreSuccess) {
                         logger.info('The file restoration did not end well...');
@@ -402,9 +416,9 @@ export class VRisingServer extends EventEmitter {
                 // Notify scheduled operation progress
                 const progressMessage = this.messageMap.get(type).notifyProgress(this);
                 if (type === 'restart') {
-                    await sendRestartAnnounceToVRisingServer(delay);
+                    await this.rConClient.sendRestartAnnounceToVRisingServer(delay);
                 } else if (type === 'stop') {
-                    await sendAnnounceToVRisingServer(progressMessage);
+                    await this.rConClient.sendAnnounceToVRisingServer(progressMessage);
                 }
                 this.emit('operation_progress', this.serverInfo);
             }
@@ -415,9 +429,9 @@ export class VRisingServer extends EventEmitter {
 
         await sendDiscordMessage(startMessage);
         if (type === 'restart') {
-            await sendRestartAnnounceToVRisingServer(delay);
+            await this.rConClient.sendRestartAnnounceToVRisingServer(delay);
         } else if (type === 'stop') {
-            await sendAnnounceToVRisingServer(startMessage);
+            await this.rConClient.sendAnnounceToVRisingServer(startMessage);
         }
 
         this.emit('operation_start', this.serverInfo);
@@ -446,33 +460,33 @@ export class VRisingServer extends EventEmitter {
         return this.serverInfo.pid !== null;
     }
 
-    async onServerHostSettings(isInitialLoad = false, hostSettings = null) {
-        if (!hostSettings) {
-            hostSettings = await getHostSettings(this.config);
+    async onServerHostSettings(isInitialLoad = false, settings = null) {
+        if (!settings) {
+            settings = await getHostSettings(this.config);
         }
 
         if (isInitialLoad) {
-            this.lastAppliedHostSettings = {...hostSettings};
+            this.hostSettings.lastApplied = {...settings};
         }
 
-        this.hostSettings = {...hostSettings};
+        this.hostSettings.current = {...settings};
 
-        this.emit('loaded_host_settings', {current: this.hostSettings, lastApplied: this.lastAppliedHostSettings});
-        this.apiClient.updateApiConfig(hostSettings.API);
+        this.emit('loaded_host_settings', this.hostSettings);
+        this.apiClient.updateApiConfig(settings.API);
     }
 
-    async onServerGameSettings(isInitialLoad = false, gameSettings = null) {
-        if (!gameSettings) {
-            gameSettings = await getGameSettings(this.config);
+    async onServerGameSettings(isInitialLoad = false, settings = null) {
+        if (!settings) {
+            settings = await getGameSettings(this.config);
         }
 
         if (isInitialLoad) {
-            this.lastAppliedGameSettings = {...gameSettings};
+            this.gameSettings.lastApplied = {...settings};
         }
 
-        this.gameSettings = {...gameSettings};
+        this.gameSettings.current = {...settings};
 
-        this.emit('loaded_game_settings', {current: this.gameSettings, lastApplied: this.lastAppliedGameSettings});
+        this.emit('loaded_game_settings', this.gameSettings);
     }
 
     async onAdminList(isInitialLoad = false, adminList = null) {
@@ -481,14 +495,14 @@ export class VRisingServer extends EventEmitter {
         }
 
         if (isInitialLoad) {
-            this.lastAppliedAdminList = [...adminList];
+            this.adminList.lastApplied = [...adminList];
         }
 
-        this.adminList = [...adminList];
+        this.adminList.current = [...adminList];
 
-        this.emit('loaded_admin_list', {current: this.adminList, lastApplied: this.lastAppliedAdminList});
+        this.emit('loaded_admin_list', this.adminList);
 
-        await this.playerManager.parseAdminList(this.adminList);
+        await this.playerManager.parseAdminList(this.adminList.current);
     }
 
     async onBanList(isInitialLoad = false, banList = null) {
@@ -497,141 +511,105 @@ export class VRisingServer extends EventEmitter {
         }
 
         if (isInitialLoad) {
-            this.lastAppliedBanList = [...banList];
+            this.banList.lastApplied = [...banList];
         }
 
-        this.banList = [...banList];
+        this.banList.current = [...banList];
 
-        this.emit('loaded_ban_list', {current: this.banList, lastApplied: this.lastAppliedBanList});
-        await this.playerManager.parseBanList(this.banList);
+        this.emit('loaded_ban_list', this.banList);
+        await this.playerManager.parseBanList(this.banList.current);
     }
 
-    startServer(config = null, sendMessage = false) {
+    async startServer(config = null, sendMessage = false) {
         if (config) {
             this.config = config;
             this.apiClient.updateOptions(config.server.api);
         }
-        return startVRisingServerExecution(this.config, this)
-            .then(async () => {
-                await this.onServerHostSettings(true);
-                await this.onServerGameSettings(true);
-                await this.onAdminList(true);
-                await this.onBanList(true);
 
-                this.emit('server_started', {
-                    serverInfo: this.serverInfo,
-                    hostSettings: {
-                        current: this.hostSettings,
-                        lastApplied: this.lastAppliedHostSettings
-                    },
-                    gameSettings: {
-                        current: this.gameSettings,
-                        lastApplied: this.lastAppliedGameSettings
-                    },
-                    adminList: {
-                        current: this.adminList,
-                        lastApplied: this.lastAppliedAdminList
-                    },
-                    banList: {
-                        current: this.banList,
-                        lastApplied: this.lastAppliedBanList
-                    }
-                });
+        await this.onServerHostSettings(true);
+        await this.onServerGameSettings(true);
+        await this.onAdminList(true);
+        await this.onBanList(true);
 
-                if (sendMessage) {
-                    const message = this.messageMap.get('start').notifyDone(this);
-                    await sendDiscordMessage(message);
-                }
+        await startVRisingServerExecution(this.config, this);
 
-                this.apiClient.startPollingMetrics();
-                return this.serverInfo;
-            });
+        this.emit('server_started', {
+            serverInfo: this.serverInfo,
+            hostSettings: this.hostSettings,
+            gameSettings: this.gameSettings,
+            adminList: this.adminList,
+            banList: this.banList
+        });
+
+        if (sendMessage) {
+            const message = this.messageMap.get('start').notifyDone(this);
+            await sendDiscordMessage(message);
+        }
+
+        this.apiClient.startPollingMetrics();
+        return this.serverInfo;
     }
 
-    stopServer(sendMessage = false) {
+    async stopServer(sendMessage = false) {
         if (!this.isRunning()) return this.serverInfo;
         this.apiClient.stopPollingMetrics();
-        return stopVRisingServerExecution(this)
-            .then(async () => {
-                this.emit('server_stopped', {
-                    serverInfo: this.serverInfo,
-                    hostSettings: {
-                        current: this.hostSettings,
-                        lastApplied: this.lastAppliedHostSettings
-                    },
-                    gameSettings: {
-                        current: this.gameSettings,
-                        lastApplied: this.lastAppliedGameSettings
-                    },
-                    adminList: {
-                        current: this.adminList,
-                        lastApplied: this.lastAppliedAdminList
-                    },
-                    banList: {
-                        current: this.banList,
-                        lastApplied: this.lastAppliedBanList
-                    }
-                });
-                if (sendMessage) {
-                    const message = this.messageMap.get('force-stop').notifyDone(this);
-                    await sendDiscordMessage(message);
-                }
-                return this.serverInfo;
-            });
+        await this.rConClient.disconnect();
+        await stopVRisingServerExecution(this);
+
+        this.emit('server_stopped', {
+            serverInfo: this.serverInfo,
+            hostSettings: this.hostSettings,
+            gameSettings: this.gameSettings,
+            adminList: this.adminList,
+            banList: this.banList
+        });
+
+        if (sendMessage) {
+            const message = this.messageMap.get('force-stop').notifyDone(this);
+            await sendDiscordMessage(message);
+        }
+
+        return this.serverInfo;
     }
 
     async changeHostSettings(settings) {
-        if (lodash.isEqual(settings, this.hostSettings))
-            return {
-                current: this.hostSettings,
-                lastApplied: this.lastAppliedHostSettings
-            }
-        this.hostSettings = settings;
-        await writeHostSettings(this.config, settings);
-        this.emit('changed_host_settings', {current: this.hostSettings, lastApplied: this.lastAppliedHostSettings});
-        return {current: this.hostSettings, lastApplied: this.lastAppliedHostSettings};
+        if (!lodash.isEqual(settings, this.hostSettings.current)) {
+            await writeHostSettings(this.config, settings);
+            this.hostSettings.current = settings;
+            this.emit('changed_host_settings', this.hostSettings);
+        }
+        return this.hostSettings;
     }
 
     async changeGameSettings(settings) {
-        if (lodash.isEqual(settings, this.gameSettings))
-            return {
-                current: this.gameSettings,
-                lastApplied: this.lastAppliedGameSettings
-            }
-        this.gameSettings = settings;
-        await writeGameSettings(this.config, settings);
-        this.emit('changed_game_settings', {current: this.gameSettings, lastApplied: this.lastAppliedGameSettings});
-        return {current: this.gameSettings, lastApplied: this.lastAppliedGameSettings};
+        if (!lodash.isEqual(settings, this.gameSettings.current)) {
+            await writeGameSettings(this.config, settings);
+            this.gameSettings.current = settings;
+            this.emit('changed_game_settings', this.gameSettings);
+        }
+        return this.gameSettings;
     }
 
     async changeAdminList(adminList) {
-        if (lodash.isEqual(adminList, this.adminList))
-            return {
-                current: this.adminList,
-                lastApplied: this.lastAppliedAdminList
-            };
+        if (!lodash.isEqual(adminList, this.adminList)) {
+            await writeAdminList(this.config, adminList);
+            this.adminList.current = adminList;
+            this.emit('changed_admin_list', this.adminList);
+            await this.playerManager.parseAdminList(adminList);
+        }
 
-        this.adminList = adminList;
-        await writeAdminList(this.config, adminList);
-        const result = {current: this.adminList, lastApplied: this.lastAppliedAdminList};
-        this.emit('changed_admin_list', result);
-        await this.playerManager.parseAdminList(adminList);
-        return result;
+        return this.adminList;
     }
 
     async changeBanList(banList) {
-        if (lodash.isEqual(banList, this.banList))
-            return {
-                current: this.banList,
-                lastApplied: this.lastAppliedBanList
-            };
+        if (!lodash.isEqual(banList, this.banList)) {
+            await writeBanList(this.config, banList);
+            this.banList.current = banList;
+            this.emit('changed_ban_list', this.banList);
+            await this.playerManager.parseBanList(banList);
+        }
 
-        this.banList = banList;
-        await writeBanList(this.config, banList);
-        const result = {current: this.banList, lastApplied: this.lastAppliedBanList};
-        this.emit('changed_ban_list', result);
-        await this.playerManager.parseBanList(banList);
-        return result;
+        return this.banList;
     }
 
     parseLastAutoSave([, autoSaveNumber, extension]) {
@@ -642,7 +620,7 @@ export class VRisingServer extends EventEmitter {
                 currentSaveNumber: autoSaveNumber
             });
 
-            if (this.config && this.config.server && this.config.server.dataPath && this.hostSettings) {
+            if (this.config && this.config.server && this.config.server.dataPath) {
                 this.emit('auto_save', {
                     config: this.config,
                     saveNumber: autoSaveNumber,
@@ -655,7 +633,7 @@ export class VRisingServer extends EventEmitter {
 
     parseLoadedSave([, saveNumber, extension]) {
         saveNumber = parseInt(saveNumber);
-        logger.info('Save %d loaded with extension %s !', saveNumber, extension);
+        logger.debug('(Server) Save %d loaded with extension %s !', saveNumber, extension);
         if (this.serverInfo.currentSaveNumber !== saveNumber) {
             this._updateServerInfo({
                 currentSaveNumber: saveNumber
@@ -683,6 +661,23 @@ export class VRisingServer extends EventEmitter {
         }
 
         await this.playerManager.parseLogLine(newLine);
+    }
+
+    startWatchingLogFile() {
+        if (this.logWatcher) {
+            if (!this.logWatcher.isWatching) {
+                this.logWatcher.resumeWatching();
+            }
+        } else {
+            this.logWatcher = new LogWatcher(this, this.config.server.logFile);
+            this.logWatcher.watchLogFile().catch(err => logger.error('Error watching log file: %s', err.message));
+        }
+    }
+
+    stopWatchingLogFile() {
+        if (this.logWatcher && this.logWatcher.isWatching) {
+            this.logWatcher.stopWatching();
+        }
     }
 }
 

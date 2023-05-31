@@ -2,10 +2,8 @@ import * as os from "os";
 import {logger} from "../logger.js";
 import path from "path";
 import {spawn, execFile} from 'child_process';
-import {stopWatchingLog, watchLogFileChanges} from "./logs.js";
 import fs from "fs";
 import {waitForFile} from "./utils.js";
-import {connectRCon} from "./rcon.js";
 import pino from 'pino';
 import pretty from 'pino-pretty';
 
@@ -28,7 +26,7 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
     ];
 
     if (fs.existsSync(config.server.logFile)) {
-        logger.debug('Deleting server log file %s', config.server.logFile);
+        logger.info('Deleting server log file %s', config.server.logFile);
         fs.unlinkSync(config.server.logFile);
     }
 
@@ -82,12 +80,9 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
 
         await waitForFile(config.server.logFile);
         logger.debug('Log file is ready to be parsed : %s', config.server.logFile);
-        await watchLogFileChanges(config.server.logFile);
+        vRisingServer.startWatchingLogFile();
 
         vRisingServer.once('ready', async (serverInfo) => {
-            if (config.rcon.active) {
-                await connectRCon(config);
-            }
             resolve(serverInfo);
         });
     });
@@ -110,7 +105,7 @@ export const stopVRisingServerExecution = async (vRisingServer) => {
                 })
             }
 
-            stopWatchingLog();
+            vRisingServer.stopWatchingLogFile();
             vRisingServer.clearServerInfo();
             vRisingServer.serverProcess = null;
             resolve(vRisingServer.getServerInfo());

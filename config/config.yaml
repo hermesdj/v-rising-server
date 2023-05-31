@@ -31,7 +31,7 @@ server:
 log:
   level: debug
 rcon:
-  active: false
+  active: true
   host: 127.0.0.1
   port: 25575
   password: ***REMOVED***

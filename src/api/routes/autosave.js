@@ -12,20 +12,20 @@ router.get('/backups', ensureAuthenticated, async (req, res) => {
     res.json({backupFileNames: fileNames});
 });
 
-router.get('/backups/:fileName', (req, res) => {
-     const {fileName} = req.params;
-     const backupDir = vRisingServer.autoSaveManager._backupDir(req.config);
-     const filePath = path.join(backupDir, fileName);
+router.get('/backups/:fileName', ensureAuthenticated, (req, res) => {
+    const {fileName} = req.params;
+    const backupDir = vRisingServer.autoSaveManager._backupDir(req.config);
+    const filePath = path.join(backupDir, fileName);
 
-     if(!fs.existsSync(filePath)){
-         res.status(404).json({message: 'Backup not found'});
-         return;
-     }
+    if (!fs.existsSync(filePath)) {
+        res.status(404).json({message: 'Backup not found'});
+        return;
+    }
 
-     res.attachment(fileName);
+    res.attachment(fileName);
 
-     const readStream = fs.createReadStream(filePath);
-     readStream.pipe(res);
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
 });
 
 router.post('/schedule-restore-backup', ensureAdmin, async (req, res) => {

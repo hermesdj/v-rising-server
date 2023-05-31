@@ -1,13 +1,13 @@
 import Router from "express-promise-router";
 import {ensureAdmin} from "./utils.js";
 import fs from 'fs';
-import readline from 'readline';
+import {logger} from "../../logger.js";
 
 const router = new Router();
 
-router.get('/:logName', ensureAdmin, (req, res, next) => {
+router.get('/:logName', ensureAdmin, async (req, res, next) => {
     const {logName} = req.params;
-    const {from = 0} = req.query;
+    const {from = '0'} = req.query;
 
     let filePath = `logs/${logName}.log`;
 
@@ -19,22 +19,17 @@ router.get('/:logName', ensureAdmin, (req, res, next) => {
         res.send('');
     } else {
         try {
-            let lineIndex = 0;
-
-            const rl = readline.createInterface({
-                input: fs.createReadStream(filePath)
+            const stream = fs.createReadStream(filePath, {
+                start: parseInt(from)
             });
 
-            rl.on('line', (line) => {
-                lineIndex++;
+            for await (const chunk of stream) {
+                res.write(chunk);
+            }
 
-                if (lineIndex > from) {
-                    res.write(line + '\n');
-                }
-            });
-
-            rl.once('close', () => res.end());
+            res.end();
         } catch (err) {
+            logger.error('Error while reading log file %s from position %d: %s', logName, from, err.message);
             next(err);
         }
     }

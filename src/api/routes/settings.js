@@ -5,47 +5,42 @@ import {vRisingServer} from "../../v-rising/server.js";
 
 const router = Router();
 
-const loadHostSettings = (req, hostSettings) => {
-    if (!hostSettings) return hostSettings;
-    if (!req.isAuthenticated()) {
-        hostSettings.Password = "XXXXXXXXX";
-        if (hostSettings.Rcon) {
-            hostSettings.Rcon.Password = "XXXXXXXX";
-        }
+const mutateHostSettings = (settings) => {
+    settings.Password = "XXXXXXXXX";
+    if (settings.Rcon) {
+        settings.Rcon.Password = "XXXXXXXX";
     }
-    return hostSettings;
+    return settings;
+}
+
+const parseHostSettings = (req, {current, lastApplied}) => {
+    if (!req.isAuthenticated() || !req.user.isAdmin) {
+        if (current) {
+            current = mutateHostSettings(current);
+        }
+        if (lastApplied) {
+            lastApplied = mutateHostSettings(lastApplied);
+        }
+
+    }
+    return {current, lastApplied};
 }
 
 router.get('/', async (req, res) => {
-    let hostSettings = loadHostSettings(req, vRisingServer.hostSettings);
-    let gameSettings = vRisingServer.gameSettings;
-    const lastAppliedHostSettings = loadHostSettings(req, vRisingServer.lastAppliedHostSettings);
-    const lastAppliedGameSettings = vRisingServer.lastAppliedGameSettings;
+    const {gameSettings, hostSettings} = vRisingServer;
 
-    if (!hostSettings) {
-        hostSettings = loadHostSettings(req, await getHostSettings(req.config));
+    if (!hostSettings.current) {
+        hostSettings.current = await getHostSettings(req.config);
     }
 
-    if (!gameSettings) {
-        gameSettings = await getGameSettings(req.config);
+    if (!gameSettings.current) {
+        gameSettings.current = await getGameSettings(req.config);
     }
 
     res.json({
-        hostSettings,
+        hostSettings: parseHostSettings(req, hostSettings),
         gameSettings,
-        lastAppliedHostSettings,
-        lastAppliedGameSettings
     });
-});
-
-router.get('/host', async (req, res) => {
-    const hostSettings = await loadHostSettings(req);
-    res.json(hostSettings);
-});
-
-router.get('/game', async (req, res) => {
-    const gameSettings = await getGameSettings(req.config);
-    res.json(gameSettings);
 });
 
 router.post('/host', ensureAdmin, async (req, res) => {

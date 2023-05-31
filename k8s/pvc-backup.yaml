@@ -6,8 +6,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: glusterfs-reclaim
-  volumeName: v-rising-backup-pv
+  storageClassName: glusterfs
   resources:
     requests:
       storage: 500Mi

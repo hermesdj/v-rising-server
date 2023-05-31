@@ -1,7 +1,7 @@
 import {logger} from "../logger.js";
 import lodash from "lodash";
 import {vRisingServer} from "../v-rising/server.js";
-import {getAdminList} from "../v-rising/users.js";
+import {getAdminList, getBanList} from "../v-rising/users.js";
 
 export class UserStore {
     constructor(db, config) {
@@ -24,11 +24,17 @@ export class UserStore {
             // Check if user is admin
             const isAdmin = await this.isAdmin(id);
             const isPlayer = await this.isPlayer(id);
+            const isBanned = await this.isBanned(id);
 
             user = {id, username, isAdmin, isPlayer};
 
             if (!isAdmin && !isPlayer) {
                 logger.warn('User with Steam ID %s tried to authenticate and is not a player or an admin !', id);
+                return false;
+            }
+
+            if (isBanned) {
+                logger.warn('User with Steam ID %s tried to authenticate but he is banned !', id);
                 return false;
             }
 
@@ -39,18 +45,24 @@ export class UserStore {
     }
 
     async isAdmin(steamId) {
-        let adminList = vRisingServer.adminList;
+        const {current} = vRisingServer.adminList;
 
-        if (!adminList) {
-            adminList = await getAdminList(this.config);
-        }
+        const adminList = !current ? await getAdminList(this.config) : [...current];
 
-        return adminList && Array.isArray(adminList) && adminList.some(id => lodash.isEqual(id, steamId));
+        return adminList && Array.isArray(adminList) && adminList.includes(steamId);
+    }
+
+    async isBanned(steamId) {
+        let {current} = vRisingServer.banList;
+
+        const banList = !current ? await getBanList(this.config) : [...current];
+
+        return banList && Array.isArray(banList) && !banList.includes(steamId);
     }
 
     async isPlayer(steamId) {
-        let playerList = vRisingServer.playerManager.players;
-
+        await vRisingServer.playerManager.store.read();
+        let playerList = vRisingServer.playerManager.store.all();
         return playerList && Array.isArray(playerList) && playerList.some(player => lodash.isEqual(player.steamID, steamId));
     }
 

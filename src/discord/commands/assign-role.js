@@ -6,7 +6,6 @@ const assignRole = new SlashCommandBuilder().setName('v-role').setDescription('O
 export const data = assignRole.toJSON();
 
 export const execute = async (interaction, api, config) => {
-    console.log(interaction.member);
     if (!interaction.member.roles.some(roleId => roleId === config.discord.roleId)) {
         logger.info('Assigning role %s to discord user %s', config.discord.roleId, interaction.member.user.username);
         await api.guilds.addRoleToMember(interaction.guild_id, interaction.member.user.id, config.discord.roleId);

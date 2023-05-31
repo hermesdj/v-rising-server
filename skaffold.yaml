@@ -16,6 +16,7 @@ manifests:
     - k8s/role.yaml
     - k8s/role-binding.yaml
     - k8s/api-env.yaml
+    - k8s/api-server-config.yaml
     - k8s/api-deployment.yaml
     - k8s/api-service.yaml
     - k8s/api-ingressroute.yaml

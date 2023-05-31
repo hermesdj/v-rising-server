@@ -3,42 +3,58 @@ import {Tail} from 'tail';
 import {vRisingServer} from "./server.js";
 import {logger} from "../logger.js";
 import * as os from "os";
+import {on} from 'events';
 
-let tail = null;
-
-export const watchLogFileChanges = async (logFilePath) => {
-    if (tail) {
-        tail.unwatch();
+export class LogWatcher {
+    constructor(server, logFilePath) {
+        this.server = server;
+        this.tail = null;
+        this.logFilePath = logFilePath;
     }
 
-    logger.debug('Opening log file %s', logFilePath);
+    get isWatching() {
+        return this.tail && this.tail.isWatching;
+    }
 
-    if (fs.existsSync(logFilePath)) {
-        try {
-            tail = new Tail(logFilePath, {
+    async watchLogFile() {
+        for await (const line of this.logLines()) {
+            await this.server.parseLogLine(line);
+        }
+    }
+
+    stopWatching() {
+        if (this.tail) {
+            this.tail.unwatch();
+            this.isWatching = false;
+        }
+    }
+
+    resumeWatching() {
+        if (this.tail) {
+            this.tail.watch();
+        }
+    }
+
+    async* logLines() {
+        if (this.tail) {
+            this.tail.unwatch();
+        }
+
+        if (fs.existsSync(this.logFilePath)) {
+            this.tail = new Tail(this.logFilePath, {
                 fromBeginning: true,
                 follow: true,
                 useWatchFile: os.platform() === 'win32',
                 logger
             });
 
-            tail.on('line', async (line) => {
-                await vRisingServer.parseLogLine(line);
-            });
-
-            tail.on('error', (err) => {
-                logger.error('tailing file error: ', err);
-            });
-
-            tail.watch();
-        } catch (ex) {
-            logger.error('Error tailing log file', ex);
+            try {
+                for await (const [line] of on(this.tail, 'line')) {
+                    yield line;
+                }
+            } catch (err) {
+                logger.error('Tail error: Error tailing log file: %s', err.message);
+            }
         }
-    } else {
-        logger.warn('No log file found on path %s', logFilePath);
     }
-}
-
-export const stopWatchingLog = () => {
-    if (tail) tail.unwatch();
 }

@@ -16,6 +16,10 @@ class PlayerStore {
         this.db = new Players(db);
     }
 
+    async read() {
+        return this.db.db.read();
+    }
+
     all() {
         return this.db.all();
     }
@@ -81,8 +85,6 @@ export class VRisingPlayerManager extends EventEmitter {
         this.logger = logger;
         this.playerMap = new Map();
         this.store = new PlayerStore(db);
-
-        this.parsePromise = null;
 
         this.regexArray = [
             {
