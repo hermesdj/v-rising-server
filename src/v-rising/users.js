@@ -15,7 +15,7 @@ const checkAdminList = async (config) => {
             defaultAdminList = [];
         }
 
-        logger.info('Init default admin list from config');
+        logger.info('Init default admin list from config: %j', defaultAdminList);
         await writeAdminList(config, defaultAdminList);
     } else {
         logger.debug('Admin list file already exists');

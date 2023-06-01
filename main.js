@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import {startExpressApi} from "./src/api/express.js";
+import {startExpressApi} from "./src/api/http.js";
 import {logger} from "./src/logger.js";
 import {initBotCommands} from "./src/discord/index.js";
 import {loadServerConfig} from "./src/config.js";

@@ -22,8 +22,7 @@ server:
   logFile: ./logs/server.log
   gamePort: 9876
   queryPort: 9877
-  defaultAdminList:
-    - 76561198005048084
+  defaultAdminList: [ ]
 log:
   level: debug
 rcon:

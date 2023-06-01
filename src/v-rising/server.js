@@ -16,6 +16,10 @@ import {LogWatcher} from "./logs.js";
 
 dayjs.extend(utc);
 
+/**
+ * VRising Server class
+ * @typedef {Object} ServerInfo
+ */
 export class VRisingServer extends EventEmitter {
     constructor() {
         super();
@@ -127,12 +131,6 @@ export class VRisingServer extends EventEmitter {
                 regex: /SteamPlatformSystem - Server connected to Steam successfully!/g,
                 parse: () => {
                     this.setConnectedToSteam();
-                }
-            },
-            {
-                regex: /Final ServerGameSettings Values:((.*|\n)*\n  }\n}\n)/gm,
-                parse: async (matches) => {
-                    console.log('Matched Server Game Settings', matches);
                 }
             },
             {
@@ -342,7 +340,7 @@ export class VRisingServer extends EventEmitter {
      * @param delay the delay in minutes
      * @param user doing the operation
      * @param options option for the operation
-     * @returns {Promise<void>}
+     * @returns {Promise<{ServerInfo}>}
      */
     async scheduleOperation(type, delay, user, options = {}) {
         if (type !== 'restart' && type !== 'stop' && type !== 'restore-backup') {
@@ -655,7 +653,7 @@ export class VRisingServer extends EventEmitter {
         for (const {regex, parse} of this.regexpArray) {
             const matches = regex.exec(newLine);
             if (matches && matches.length > 0) {
-                await parse(matches);
+                await parse(matches, line);
             }
             regex.lastIndex = 0;
         }

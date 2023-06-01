@@ -9,7 +9,7 @@
     "dev": "nodemon app.js"
   },
   "author": "dallardj@gmail.com",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@discordjs/builders": "^1.6.3",
     "@discordjs/collection": "^1.5.1",

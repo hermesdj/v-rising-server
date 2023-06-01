@@ -9,9 +9,9 @@ const httpServer = createServer(app);
 startSocketIoServer(httpServer);
 
 export const startExpressApi = async (config) => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         httpServer.listen(config.api.port, () => {
-            logger.info(`V Rising server API is listening on port ${config.api.port}`);
+            logger.info(`V Rising server API is started: http://localhost:${config.api.port}`);
             resolve(httpServer);
         })
     })

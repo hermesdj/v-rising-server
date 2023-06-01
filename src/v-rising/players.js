@@ -136,7 +136,7 @@ export class VRisingPlayerManager extends EventEmitter {
         for (const {regex, parse} of this.regexArray) {
             const matches = regex.exec(line);
             if (matches && matches.length > 0) {
-                await parse(matches);
+                await parse(matches, line);
             }
             regex.lastIndex = 0;
         }
@@ -336,7 +336,7 @@ export class VRisingPlayerManager extends EventEmitter {
         return player;
     }
 
-    async parseDisconnectedPlayer([, steamIdx, approvedUserIndex, reason]) {
+    async parseDisconnectedPlayer([, , approvedUserIndex, reason]) {
         approvedUserIndex = parseInt(approvedUserIndex);
 
         if (this.playerMap.has(approvedUserIndex)) {

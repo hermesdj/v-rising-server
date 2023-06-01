@@ -3,6 +3,7 @@ import url from "url";
 import yaml from "js-yaml";
 import fs from "fs";
 import env from "env-var";
+import lodash from "lodash";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
@@ -15,7 +16,7 @@ export const loadServerConfig = () => {
 
     const loadedYaml = yaml.load(fs.readFileSync(configPath, 'utf8'));
 
-    config = {
+    config = lodash.defaultsDeep(loadedYaml, {
         api: {
             port: env.get('API_PORT').asPortNumber(),
             auth: {
@@ -72,9 +73,8 @@ export const loadServerConfig = () => {
             host: env.get('RCON_HOST').default('127.0.0.1').asString(),
             port: env.get('RCON_PORT').default(25575).asPortNumber(),
             password: env.get('RCON_PASSWORD').asString()
-        },
-        ...loadedYaml,
-    };
+        }
+    });
 
     return config;
 };
