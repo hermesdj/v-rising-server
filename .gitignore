@@ -5,3 +5,4 @@ server-data/
 .idea
 public/*
 data/*.json
+k8s/api-secrets.yaml
