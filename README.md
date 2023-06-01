@@ -1,7 +1,7 @@
 # Serveur V-Rising avec API
 
 Serveur V Rising en conteneur docker avec API et application WEB (voir
-projet https://github.com/hermesdj/v-rising-client)
+projet [V Rising Server WEB Client] (https://github.com/hermesdj/v-rising-client))
 
 La configuration de ce conteneur a été basé sur le travail
 de [TrueOsiris Docker VRising](https://github.com/TrueOsiris/docker-vrising)
