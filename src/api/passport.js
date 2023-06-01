@@ -21,7 +21,7 @@ passport.use('steam',
     new SteamStrategy({
         returnURL: config.api.auth.returnURL,
         realm: config.api.auth.realm,
-        apiKey: process.env.STEAM_API_KEY
+        apiKey: config.api.auth.steamApiKey
     }, (identifier, profile, done) => {
         userStore.authenticateSteamUser(profile)
             .then(user => done(null, user))

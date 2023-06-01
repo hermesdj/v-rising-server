@@ -20,10 +20,11 @@ export const loadServerConfig = () => {
 
     const envConfig = {
         api: {
-            port: env.get('API_PORT').default('8080').asPortNumber(),
+            port: env.get('API_PORT').default(8080).asPortNumber(),
             auth: {
                 returnURL: env.get('API_AUTH_RETURN_URL').default('http://localhost:8080/api/auth/steam/return').asUrlString(),
-                realm: env.get('API_AUTH_REALM').default('http://localhost:8080/').asUrlString()
+                realm: env.get('API_AUTH_REALM').default('http://localhost:8080/').asUrlString(),
+                steamApiKey: env.get('API_AUTH_STEAM_API_KEY').required(true).asString(),
             },
             session: {
                 secret: env.get('API_SESSION_SECRET').asString(),
