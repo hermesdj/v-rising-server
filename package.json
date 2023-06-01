@@ -5,7 +5,8 @@
   "main": "main.js",
   "type": "module",
   "scripts": {
-    "start": "node main.js"
+    "start": "node main.js",
+    "dev": "nodemon app.js"
   },
   "author": "dallardj@gmail.com",
   "license": "ISC",
@@ -45,5 +46,8 @@
     "tar-stream": "^3.0.0",
     "uuid": "^9.0.0",
     "zlib": "^1.0.5"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
   }
 }
