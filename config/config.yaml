@@ -4,7 +4,6 @@ api:
     returnURL: http://localhost:8080/api/auth/steam/return
     realm: http://localhost:8080/
   session:
-    secret: ***REMOVED***
     params:
       resave: false
       saveUninitialized: false
@@ -25,14 +24,9 @@ server:
   queryPort: 9877
   defaultAdminList:
     - 76561198005048084
-  api:
-    metrics:
-      pollingInterval: 30000
 log:
   level: debug
 rcon:
-  active: true
+  enabled: true
   host: 127.0.0.1
   port: 25575
-  password: ***REMOVED***
-

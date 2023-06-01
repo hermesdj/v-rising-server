@@ -28,9 +28,10 @@ const checkHostSettings = async (config) => {
         defaultHostSettings.QueryPort = config.server.queryPort;
         defaultHostSettings.Name = config.server.name;
         defaultHostSettings.SaveName = config.server.saveName;
+        defaultHostSettings.Password = config.server.password;
         defaultHostSettings.Rcon.Password = config.rcon.password;
         defaultHostSettings.Rcon.Port = config.rcon.port;
-        defaultHostSettings.Rcon.Enabled = config.rcon.active;
+        defaultHostSettings.Rcon.Enabled = config.rcon.enabled;
 
         await writeHostSettings(config, defaultHostSettings);
     } else {

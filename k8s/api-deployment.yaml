@@ -64,6 +64,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: v-rising-api-env
+            - secretRef:
+                name: v-rising-api-secrets
           volumeMounts:
             - mountPath: /mnt/vrising/server
               name: v-rising-server

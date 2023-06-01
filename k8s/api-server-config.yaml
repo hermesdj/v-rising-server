@@ -11,7 +11,6 @@ data:
         returnURL: http://v-rising.jaysgaming.fr/api/auth/steam/return
         realm: http://v-rising.jaysgaming.fr/
       session:
-        secret: ***REMOVED***
         params:
             resave: false
             saveUninitialized: false
@@ -38,7 +37,6 @@ data:
     log:
       level: info
     rcon:
-      active: true
+      enabled: true
       host: 127.0.0.1
       port: 25575
-      password: ***REMOVED***

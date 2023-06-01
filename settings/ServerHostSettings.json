@@ -1,14 +1,14 @@
 {
-  "Name": "Jay's Army V Rising Server",
-  "Description": "Serveur V Rising de la communauté Jay's Gaming",
+  "Name": "V Rising Server",
+  "Description": "Server Description",
   "Port": 9876,
   "QueryPort": 9877,
   "Address": "0.0.0.0",
   "MaxConnectedUsers": 40,
   "MaxConnectedAdmins": 4,
   "ServerFps": 30,
-  "SaveName": "b03b1aec-6f62-43e0-9e8b-4cb02fe4fb3f",
-  "Password": "***REMOVED***",
+  "SaveName": "world1",
+  "Password": "",
   "CompressSaveFiles": false,
   "Secure": true,
   "ListOnMasterServer": true,
@@ -20,7 +20,7 @@
   "AdminOnlyDebugEvents": true,
   "DisableDebugEvents": false,
   "Rcon": {
-    "Password": "***REMOVED***",
+    "Password": "changeme",
     "Enabled": true,
     "Port": 25575
   }
