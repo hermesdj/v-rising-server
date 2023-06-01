@@ -41,6 +41,7 @@
     "rcon-client": "^4.2.3",
     "rxjs": "^7.8.1",
     "socket.io": "^4.6.1",
+    "steam-server-query-goldsrc-support": "^1.1.9",
     "stream-buffers": "^3.0.2",
     "tail": "^2.2.6",
     "tar-stream": "^3.0.0",

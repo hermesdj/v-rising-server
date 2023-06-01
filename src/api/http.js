@@ -1,8 +1,8 @@
 import {createServer} from 'http';
 import {logger} from "../logger.js";
 import {app} from "./app.js";
-import './session.js';
-import './passport.js';
+import './sessions/session.js';
+import './users/passport.js';
 import {startSocketIoServer} from "./io.js";
 
 const httpServer = createServer(app);

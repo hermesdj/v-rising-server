@@ -1,6 +1,6 @@
 import {Server} from "socket.io";
 import passport from "passport";
-import {sessionMiddleware} from "./session.js";
+import {sessionMiddleware} from "./sessions/session.js";
 import {logger} from "../logger.js";
 import {vRisingServer} from "../v-rising/server.js";
 

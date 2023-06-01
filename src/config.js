@@ -59,7 +59,7 @@ export const loadServerConfig = () => {
                 accessList: env.get('V_RISING_API_ACCESS_LIST').default('').asString(),
                 prometheusDelay: env.get('V_RISING_API_PROMETHEUS_DELAY').default(30).asIntPositive(),
                 metrics: {
-                    retain: env.get('V_RISING_API_METRICS_RETAIN_HOURS').default(6).asIntPositive()
+                    retain: env.get('V_RISING_API_METRICS_RETAIN_HOURS').default(1).asIntPositive()
                 }
             }
         },
@@ -82,6 +82,14 @@ export const loadServerConfig = () => {
             host: env.get('RCON_HOST').default('127.0.0.1').asString(),
             port: env.get('RCON_PORT').default(25575).asPortNumber(),
             password: env.get('RCON_PASSWORD').asString()
+        },
+        steam: {
+            query: {
+                enabled: env.get('STEAM_QUERY_ENABLED').default('true').asBoolStrict(),
+                pollingDelay: env.get('STEAM_QUERY_POLLING_DELAY').default(30000).asIntPositive(),
+                timeout: env.get('STEAM_QUERY_TIMEOUT').default(2000).asIntPositive(),
+                attempts: env.get('STEAM_QUERY_ATTEMPTS').default(5).asIntPositive()
+            }
         }
     };
 

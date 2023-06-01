@@ -264,4 +264,13 @@ Les fichiers PVC et secrets doivent être déployés séparément avant le lance
 - Exploiter les métriques du serveur à partir de l'api
 - Observer les fichiers banlist et adminlist au cas où ils soient modifiés par le serveur
 - Epingler le dernier Steam ID du serveur sur le discord lors de l'appel à la commande /v-server-info
-- Ajouter la possibilité d'uploader une nouvelle sauvegarde au serveur pour faciliter le déploiement initial
+- Push de l'image docker sur le registry docker principal
+- Ajouter la possibilité d'uploader une nouvelle sauvegarde au serveur pour faciliter le déploiement initial et
+  automatiquement configurer le serveur
+- Ajouter la possibilité d'automatiquement wiper le serveur après le ResetDaysInterval en se basant sur le
+  StartDate.json (tester avant ?)
+- Ajouter les multi select pour gérer UnlockedAchievements et UnlockResearch dans le GameSettings.json
+- Regarder comment configurer les VBlood à partir de l'exemple donné par Snox
+- Bouton de check version de l'image docker et redémarrage automatique / planifié
+- Possibilité de planifier des redémarrages périodiques par cron (utiliser cronstrue)
+- Tester https://www.npmjs.com/package/steam-server-query pour exploiter le QueryPort et interroger le serveur !

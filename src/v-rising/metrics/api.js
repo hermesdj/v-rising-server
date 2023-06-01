@@ -1,6 +1,6 @@
 import lodash from 'lodash';
 import axios from "axios";
-import {logger} from "../logger.js";
+import {logger} from "../../logger.js";
 import parsePrometheusTextFormat from "parse-prometheus-text-format";
 import {EventEmitter} from "events";
 import dayjs from "dayjs";

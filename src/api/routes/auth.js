@@ -7,7 +7,7 @@ const router = Router();
 
 router.get('/steam',
     passport.authenticate('steam', {failureRedirect: '/'}),
-    (req, res) => res.redirect('/')
+    (req, res) => res.redirect(process.env.NODE_ENV === 'development' ? 'http://localhost:8081' : '/')
 );
 
 router.get(
@@ -18,7 +18,7 @@ router.get(
     },
     passport.authenticate('steam', {failureRedirect: '/'}),
     (req, res) => {
-        res.redirect('/');
+        res.redirect(process.env.NODE_ENV === 'development' ? 'http://localhost:8081' : '/');
     }
 );
 

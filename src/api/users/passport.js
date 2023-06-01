@@ -1,21 +1,11 @@
 import passport from "passport";
 import {Strategy as SteamStrategy} from "passport-steam";
 import {UserStore} from "./user-store.js";
-import path from "path";
-import url from "url";
-import {JSONFile} from "lowdb/node";
-import {Low} from "lowdb";
-import {loadServerConfig} from "../config.js";
+import {loadServerConfig} from "../../config.js";
 
 const config = loadServerConfig();
 
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
-const usersFile = path.resolve(path.join(__dirname, '..', '..', 'data', 'users-db.json'));
-
-const adapter = new JSONFile(usersFile);
-export const db = new Low(adapter, {users: []});
-
-export const userStore = new UserStore(db, config);
+export const userStore = new UserStore(config);
 
 passport.use('steam',
     new SteamStrategy({

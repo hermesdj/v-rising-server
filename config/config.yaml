@@ -31,10 +31,16 @@ server:
     accessList:
     prometheusDelay: 30
     metrics:
-      retain: 6
+      retain: 1
 log:
   level: debug
 rcon:
   enabled: true
   host: 127.0.0.1
   port: 25575
+steam:
+  query:
+    enabled: true
+    pollingDelay: 30000
+    timeout: 2000
+    attempts: 5

@@ -1,11 +1,12 @@
-import {logger} from "../logger.js";
+import {logger} from "../../logger.js";
 import lodash from "lodash";
-import {vRisingServer} from "../v-rising/server.js";
-import {getAdminList, getBanList} from "../v-rising/users.js";
+import {vRisingServer} from "../../v-rising/server.js";
+import {getAdminList, getBanList} from "../../v-rising/users.js";
+import {DbManager} from "../../db-manager.js";
 
 export class UserStore {
     constructor(db, config) {
-        this.db = new Users(db);
+        this.db = DbManager.createDb('users-db', 'users');
         this.config = config;
     }
 
@@ -72,40 +73,5 @@ export class UserStore {
 
     async deserializeUser(id) {
         return this.db.get(id);
-    }
-}
-
-class Users {
-    constructor(db) {
-        this.db = db;
-        this.chain = lodash.chain(db).get('data').get('users');
-    }
-
-    get(id) {
-        logger.trace('retrieve user with id %s', id);
-        const obj = this.chain.find({id}).cloneDeep().value();
-        return obj ? obj.user : null;
-    }
-
-    async set(id, user) {
-        const obj = {id, user};
-        const found = this.chain.find({id});
-        if (found.value()) {
-            found.assign(obj).value();
-            await this.db.write();
-        } else {
-            this.chain.push(obj).value();
-            await this.db.write();
-        }
-    }
-
-    async delete(id) {
-        this.chain.remove({id}).value();
-        await this.db.write();
-    }
-
-    async clear() {
-        this.chain.remove().value();
-        await this.db.write();
     }
 }

@@ -25,7 +25,7 @@
     "Port": 25575
   },
   "API": {
-    "Enabled": false,
+    "Enabled": true,
     "BindAddress": "*",
     "BindPort": 9090,
     "BasePath": "/",

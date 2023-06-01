@@ -1,6 +1,6 @@
 import express from "express";
 import passport from "passport";
-import {sessionMiddleware} from "./session.js";
+import {sessionMiddleware} from "./sessions/session.js";
 import actuator from "express-actuator";
 import {vRisingServer} from "../v-rising/server.js";
 import {loadServerConfig} from "../config.js";

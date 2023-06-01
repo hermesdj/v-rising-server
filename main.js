@@ -5,18 +5,14 @@ import {initBotCommands} from "./src/discord/index.js";
 import {loadServerConfig} from "./src/config.js";
 import {initVRisingServerSettings} from "./src/v-rising/settings.js";
 import {vRisingServer} from "./src/v-rising/server.js";
-import {db as sessionDb} from "./src/api/session.js";
-import {db as userDb} from "./src/api/passport.js";
-import {db as playerDb} from "./src/v-rising/players.js";
 import {initVRisingUsers} from "./src/v-rising/users.js";
+import {DbManager} from "./src/db-manager.js";
 
 (async () => {
     const config = loadServerConfig();
-    await sessionDb.read();
-    await userDb.read();
-    await playerDb.read();
     logger.info('Starting VRising Server API');
     const httpServer = await startExpressApi(config);
+    await DbManager.initAllDatabases();
     logger.info('Init Discord Bot');
     await initBotCommands();
     logger.info('Init VRising server');

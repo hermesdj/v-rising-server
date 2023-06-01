@@ -1,19 +1,10 @@
 import {EventEmitter} from "events";
 import lodash from 'lodash';
-import path from "path";
-import url from "url";
-import {JSONFile} from "lowdb/node";
-import {Low} from "lowdb";
-
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
-const playersFile = path.resolve(path.join(__dirname, '..', '..', 'data', 'players-db.json'));
-const adapter = new JSONFile(playersFile);
-
-export const db = new Low(adapter, {players: []});
+import {DbManager} from "../db-manager.js";
 
 class PlayerStore {
-    constructor(db) {
-        this.db = new Players(db);
+    constructor() {
+        this.db = DbManager.createDb('players-db', 'players');
     }
 
     async read() {
@@ -41,50 +32,12 @@ class PlayerStore {
     }
 }
 
-class Players {
-    constructor(db) {
-        this.db = db;
-        this.chain = lodash.chain(db).get('data').get('players');
-    }
-
-    all() {
-        return this.chain.value().map(({player}) => player);
-    }
-
-    get(userIndex) {
-        const obj = this.chain.find({userIndex}).cloneDeep().value();
-        return obj ? obj.player : null;
-    }
-
-    async set(userIndex, player) {
-        const obj = {userIndex, player};
-        const found = this.chain.find({userIndex});
-        if (found.value()) {
-            found.assign(obj).value();
-            await this.db.write();
-        } else {
-            this.chain.push(obj).value();
-            await this.db.write();
-        }
-    }
-
-    async delete(userIndex) {
-        this.chain.remove({userIndex}).value();
-        await this.db.write();
-    }
-
-    async clear() {
-        this.chain.remove().value();
-        await this.db.write();
-    }
-}
-
 export class VRisingPlayerManager extends EventEmitter {
     constructor({logger}) {
         super();
         this.logger = logger;
         this.playerMap = new Map();
-        this.store = new PlayerStore(db);
+        this.store = new PlayerStore();
 
         this.regexArray = [
             {

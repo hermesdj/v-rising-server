@@ -10,9 +10,10 @@ import {startVRisingServerExecution, stopVRisingServerExecution} from "./bin.js"
 import {sleep} from "./utils.js";
 import {getGameSettings, getHostSettings, writeGameSettings, writeHostSettings} from "./settings.js";
 import {getAdminList, getBanList, writeAdminList, writeBanList} from "./users.js";
-import {AutoSaveManager} from "./autosave.js";
-import {VRisingServerApiClient} from "./api.js";
+import {VRisingSaveManager} from "./autosave.js";
+import {VRisingServerApiClient} from "./metrics/api.js";
 import {LogWatcher} from "./logs.js";
+import {VRisingSteamQuery} from "./steam/query.js";
 
 dayjs.extend(utc);
 
@@ -104,9 +105,10 @@ export class VRisingServer extends EventEmitter {
         };
 
         this.playerManager = new VRisingPlayerManager({logger});
-        this.autoSaveManager = new AutoSaveManager(this);
+        this.autoSaveManager = new VRisingSaveManager(this);
         this.apiClient = new VRisingServerApiClient(this.config);
         this.rConClient = new VRisingRConClient();
+        this.steamQuery = new VRisingSteamQuery(this);
 
         this.regexpArray = [
             {
@@ -170,6 +172,10 @@ export class VRisingServer extends EventEmitter {
                 }
             }
         ]
+    }
+
+    getConfig() {
+        return this.config;
     }
 
     async _connectRConClient(password) {

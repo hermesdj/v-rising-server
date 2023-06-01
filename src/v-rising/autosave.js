@@ -7,7 +7,7 @@ import {createGunzip, createGzip} from "node:zlib";
 import {pipeline} from "node:stream";
 import {EventEmitter} from "events";
 
-export class AutoSaveManager extends EventEmitter {
+export class VRisingSaveManager extends EventEmitter {
     constructor(server) {
         super();
         this.server = server;
