@@ -74,7 +74,7 @@ spec:
             - mountPath: /usr/src/vrising-api/config
               name: v-rising-api-config
               readOnly: true
-            - mountPath: /usr/src/v-rising-api/data
+            - mountPath: /usr/src/vrising-api/data
               name: v-rising-api-data
               readOnly: false
             - mountPath: /mnt/vrising/backups

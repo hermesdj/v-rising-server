@@ -9,6 +9,7 @@ TODO :
 - Parser les métriques du serveur prometheus : https://www.npmjs.com/package/parse-prometheus-text-format
 - Regarder les GameSettings : https://cdn.stunlock.com/blog/2022/05/25083113/Game-Server-Settings.pdf
 - Epingler le dernier Steam ID sur le discord
+- Dialogue Diff : données inversées et problème de couleur de l'entête du tableau
 
 HttpService - Initializing!
 HttpService - Adding Routes

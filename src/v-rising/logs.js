@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import {Tail} from 'tail';
-import {vRisingServer} from "./server.js";
 import {logger} from "../logger.js";
 import * as os from "os";
 import {on} from 'events';
@@ -25,7 +24,6 @@ export class LogWatcher {
     stopWatching() {
         if (this.tail) {
             this.tail.unwatch();
-            this.isWatching = false;
         }
     }
 
