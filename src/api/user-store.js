@@ -57,7 +57,7 @@ export class UserStore {
 
         const banList = !current ? await getBanList(this.config) : [...current];
 
-        return banList && Array.isArray(banList) && !banList.includes(steamId);
+        return banList && Array.isArray(banList) && banList.includes(steamId);
     }
 
     async isPlayer(steamId) {
