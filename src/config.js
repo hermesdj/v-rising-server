@@ -14,14 +14,16 @@ let config = null;
 export const loadServerConfig = () => {
     if (config) return config;
 
-    const loadedYaml = yaml.load(fs.readFileSync(configPath, 'utf8'));
+    const configExists = fs.existsSync(configPath);
 
-    config = lodash.defaultsDeep(loadedYaml, {
+    const loadedYaml = configExists ? yaml.load(fs.readFileSync(configPath, 'utf8')) : {};
+
+    const envConfig = {
         api: {
-            port: env.get('API_PORT').asPortNumber(),
+            port: env.get('API_PORT').default('8080').asPortNumber(),
             auth: {
-                returnURL: env.get('API_AUTH_RETURN_URL').asUrlString(),
-                realm: env.get('API_AUTH_REALM').asUrlString()
+                returnURL: env.get('API_AUTH_RETURN_URL').default('http://localhost:8080/api/auth/steam/return').asUrlString(),
+                realm: env.get('API_AUTH_REALM').default('http://localhost:8080/').asUrlString()
             },
             session: {
                 secret: env.get('API_SESSION_SECRET').asString(),
@@ -49,13 +51,19 @@ export const loadServerConfig = () => {
             queryPort: env.get('V_RISING_QUERY_PORT').default(9877).asPortNumber(),
             defaultAdminList: env.get('V_RISING_DEFAULT_ADMIN_LIST').default('').asArray(),
             api: {
+                enabled: env.get('V_RISING_API_ENABLED').default('true').asBoolStrict(),
+                bindAddress: env.get('V_RISING_API_BIND_ADDRESS').default('*').asString(),
+                bindPort: env.get('V_RISING_API_BIND_PORT').default(9090).asPortNumber(),
+                basePath: env.get('V_RISING_API_BASE_PATH').default('/').asString(),
+                accessList: env.get('V_RISING_API_ACCESS_LIST').default('').asString(),
+                prometheusDelay: env.get('V_RISING_API_PROMETHEUS_DELAY').default(30).asIntPositive(),
                 metrics: {
-                    retain: env.get('V_RISING_METRICS_RETAIN_HOURS').default(6).asIntPositive()
+                    retain: env.get('V_RISING_API_METRICS_RETAIN_HOURS').default(6).asIntPositive()
                 }
             }
         },
         log: {
-            level: env.get('LOG_LEVEL').default('info').asString()
+            level: env.get('LOG_LEVEL').asString()
         },
         k8s: {
             namespace: env.get('V_RISING_NAMESPACE').asString(),
@@ -74,7 +82,9 @@ export const loadServerConfig = () => {
             port: env.get('RCON_PORT').default(25575).asPortNumber(),
             password: env.get('RCON_PASSWORD').asString()
         }
-    });
+    };
+
+    config = lodash.defaultsDeep(envConfig, loadedYaml);
 
     return config;
 };

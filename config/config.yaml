@@ -23,6 +23,15 @@ server:
   gamePort: 9876
   queryPort: 9877
   defaultAdminList: [ ]
+  api:
+    enabled: true
+    bindAddress: \*
+    bindPort: 9090
+    basePath: /
+    accessList:
+    prometheusDelay: 30
+    metrics:
+      retain: 6
 log:
   level: debug
 rcon:

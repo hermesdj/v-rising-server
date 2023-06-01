@@ -32,6 +32,12 @@ const checkHostSettings = async (config) => {
         defaultHostSettings.Rcon.Password = config.rcon.password;
         defaultHostSettings.Rcon.Port = config.rcon.port;
         defaultHostSettings.Rcon.Enabled = config.rcon.enabled;
+        defaultHostSettings.API.Enabled = config.server.api.enabled;
+        defaultHostSettings.API.BindAddress = config.server.api.bindAddress;
+        defaultHostSettings.API.BindPort = config.server.api.bindPort;
+        defaultHostSettings.API.BasePath = config.server.api.basePath;
+        defaultHostSettings.API.AccessList = config.server.api.accessList;
+        defaultHostSettings.API.PrometheusDelay = config.server.api.prometheusDelay;
 
         await writeHostSettings(config, defaultHostSettings);
     } else {

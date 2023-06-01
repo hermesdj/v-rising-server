@@ -49,5 +49,12 @@
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "data/*",
+      "logs/*",
+      "server-data/*"
+    ]
   }
 }
