@@ -79,9 +79,14 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
         await vRisingServer.listenToServerProcess();
 
         logger.debug('Waiting for log file %s', config.server.logFile);
-        await waitForFile(config.server.logFile, 10000);
-        logger.debug('Log file is ready to be parsed : %s', config.server.logFile);
-        vRisingServer.startWatchingLogFile();
+        const fileExists = await waitForFile(config.server.logFile, 10000);
+
+        if (fileExists) {
+            logger.debug('Log file is ready to be parsed : %s', config.server.logFile);
+            vRisingServer.startWatchingLogFile();
+        } else {
+            logger.error('Log file does not exists !');
+        }
 
         vRisingServer.once('ready', async (serverInfo) => {
             resolve(serverInfo);
