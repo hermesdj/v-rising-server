@@ -53,6 +53,8 @@ export class LogWatcher {
             } catch (err) {
                 logger.error('Tail error: Error tailing log file: %s', err.message);
             }
+        } else {
+            logger.warn('Did not find log file %s', this.logFilePath);
         }
     }
 }
