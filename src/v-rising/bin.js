@@ -78,7 +78,8 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
 
         await vRisingServer.listenToServerProcess();
 
-        await waitForFile(config.server.logFile);
+        logger.debug('Waiting for log file %s', config.server.logFile);
+        await waitForFile(config.server.logFile, 10000);
         logger.debug('Log file is ready to be parsed : %s', config.server.logFile);
         vRisingServer.startWatchingLogFile();
 
