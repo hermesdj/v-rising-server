@@ -6,14 +6,22 @@ import {ensureAdmin} from "./utils.js";
 const router = Router();
 
 router.get('/', async (req, res) => {
-    let {adminList, banList} = vRisingServer;
+    const isAllowed = req.isAuthenticated() && req.user.isAdmin;
+    const {adminList, banList} = vRisingServer;
 
-    if (!adminList.current) {
-        adminList.current = await getAdminList(req.config);
-    }
+    if (isAllowed) {
+        if (!adminList.current) {
+            adminList.current = await getAdminList(req.config);
+        }
 
-    if (!banList.current) {
-        banList.current = await getBanList(req.config);
+        if (!banList.current) {
+            banList.current = await getBanList(req.config);
+        }
+    } else {
+        adminList.current = [];
+        adminList.lastApplied = [];
+        banList.current = [];
+        banList.lastApplied = [];
     }
 
     res.json({
