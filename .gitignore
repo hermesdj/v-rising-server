@@ -6,3 +6,4 @@ server-data/
 public/*
 data/*.json
 k8s/api-secrets.yaml
+server-bin/

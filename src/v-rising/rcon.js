@@ -14,11 +14,17 @@ export class VRisingRConClient {
         this.isConnected = false;
     }
 
+    setConfig(config) {
+        if (config) {
+            this.config = config;
+        }
+    }
+
     async connect(config) {
         if (this.client) return this.client;
 
         try {
-            this.config = config;
+            this.setConfig(config);
             logger.debug('Connecting rcon with host %s, port %d, password %s', config.host, config.port, config.password);
             this.client = await Rcon.connect(config);
             this.isConnected = true;
@@ -52,8 +58,8 @@ export class VRisingRConClient {
 
     async _sendMessage(message) {
         if (!this.client) {
-            logger.warn('RCon is not active ! could not send message %s', message);
-            return false;
+            logger.debug('RCon is not active ! connecting...');
+            await this.connect();
         }
 
         try {

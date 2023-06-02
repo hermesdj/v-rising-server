@@ -11,10 +11,6 @@ router.get('/:logName', ensureAdmin, async (req, res, next) => {
 
     let filePath = `logs/${logName}.log`;
 
-    if (logName === 'v-server-logs') {
-        filePath = req.config.server.logFile;
-    }
-
     if (!fs.existsSync(filePath)) {
         res.send('');
     } else {

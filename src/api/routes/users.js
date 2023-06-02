@@ -48,6 +48,16 @@ router.post('/', ensureAdmin, async (req, res) => {
         updatedAdminList,
         updatedBanList
     });
-})
+});
+
+router.get('/admins', (req, res) => {
+    console.log('/admins called !');
+    res.send('76561198005048084');
+});
+
+router.get('/banned', (req, res) => {
+    console.log('/banned called !');
+    res.send('');
+});
 
 export default router;

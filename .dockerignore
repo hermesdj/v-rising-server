@@ -1,0 +1,15 @@
+server-bin
+server-data
+logs
+k8s
+data
+config
+tests
+node_modules
+build.bat
+deploy.bat
+.gitignore
+.gitattributes
+skaffold.yaml
+README.md
+LICENCE

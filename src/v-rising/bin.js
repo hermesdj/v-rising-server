@@ -16,14 +16,6 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
     const platform = os.platform();
 
     const fullExeFilePath = path.join(config.server.serverPath, config.server.exeFileName);
-    const args = [
-        '-persistentDataPath', config.server.dataPath,
-        '-serverName', config.server.name,
-        '-saveName', config.server.saveName,
-        '-logFile', config.server.logFile,
-        config.server.gamePort,
-        config.server.queryPort
-    ];
 
     if (fs.existsSync(config.server.logFile)) {
         logger.info('Deleting server log file %s', config.server.logFile);
@@ -32,25 +24,34 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
 
     const options = {};
 
-    const processLogger = pino({level: config.log.level}, processLogStream);
+    const processLogger = pino({level: 'info'}, processLogStream);
 
     return new Promise(async (resolve, reject) => {
         switch (platform) {
             case 'win32':
                 logger.debug('Starting VRising server on win32 platform with file path %s and args %j', fullExeFilePath, args);
-                vRisingServer.serverProcess = spawn(fullExeFilePath, args, options);
+                vRisingServer.serverProcess = spawn(fullExeFilePath, [
+                    '-persistentDataPath', config.server.dataPath,
+                    '-serverName', config.server.name,
+                    '-saveName', config.server.saveName,
+                    '-logFile', config.server.logFile,
+                    config.server.gamePort,
+                    config.server.queryPort
+                ], options);
                 break;
             case 'linux':
-                logger.info('Starting VRising server on linux platform');
-                vRisingServer.serverProcess = spawn('./start.sh', [], {
-                    env: {
-                        ...process.env,
-                        SERVERNAME: config.server.name,
-                        TZ: config.server.tz,
-                        WORLDNAME: config.server.saveName,
-                        GAMEPORT: config.server.gamePort,
-                        QUERYPORT: config.server.queryPort
-                    }
+                const linuxArgs = [
+                    '-p', config.server.dataPath,
+                    '-s', config.server.serverPath,
+                    '--name', config.server.name,
+                    '--save', config.server.saveName,
+                    '-l', config.server.logFile,
+                    config.server.gamePort,
+                    config.server.queryPort
+                ];
+                logger.info('Starting VRising server on linux platform with args %j', linuxArgs);
+                vRisingServer.serverProcess = spawn('./start.sh', linuxArgs, {
+                    env: process.env
                 });
                 break;
             default:
@@ -79,7 +80,7 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
         await vRisingServer.listenToServerProcess();
 
         logger.debug('Waiting for log file %s', config.server.logFile);
-        const fileExists = await waitForFile(config.server.logFile, 10000);
+        const fileExists = await waitForFile(config.server.logFile, 120000);
 
         if (fileExists) {
             logger.debug('Log file is ready to be parsed : %s', config.server.logFile);

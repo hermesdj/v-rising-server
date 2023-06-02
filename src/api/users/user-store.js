@@ -5,7 +5,7 @@ import {getAdminList, getBanList} from "../../v-rising/users.js";
 import {DbManager} from "../../db-manager.js";
 
 export class UserStore {
-    constructor(db, config) {
+    constructor(config) {
         this.db = DbManager.createDb('users-db', 'users');
         this.config = config;
     }
@@ -48,7 +48,7 @@ export class UserStore {
     async isAdmin(steamId) {
         const {current} = vRisingServer.adminList;
 
-        const adminList = !current ? await getAdminList(this.config) : [...current];
+        const adminList = !current || current.length === 0 ? await getAdminList(this.config) : [...current];
 
         return adminList && Array.isArray(adminList) && adminList.includes(steamId);
     }
@@ -56,7 +56,7 @@ export class UserStore {
     async isBanned(steamId) {
         let {current} = vRisingServer.banList;
 
-        const banList = !current ? await getBanList(this.config) : [...current];
+        const banList = !current || current.length === 0 ? await getBanList(this.config) : [...current];
 
         return banList && Array.isArray(banList) && banList.includes(steamId);
     }

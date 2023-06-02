@@ -3,6 +3,13 @@ import {Tail} from 'tail';
 import {logger} from "../logger.js";
 import * as os from "os";
 import {on} from 'events';
+import pretty from "pino-pretty";
+import pino from "pino";
+
+const serverLogStream = pretty({
+    colorize: true,
+    destination: './logs/v-server-logs.log'
+});
 
 export class LogWatcher {
     constructor(server, logFilePath) {
@@ -39,6 +46,8 @@ export class LogWatcher {
         }
 
         if (fs.existsSync(this.logFilePath)) {
+            const serverLogger = pino({level: 'info'}, serverLogStream);
+
             this.tail = new Tail(this.logFilePath, {
                 fromBeginning: true,
                 follow: true,
@@ -49,6 +58,7 @@ export class LogWatcher {
             try {
                 for await (const [line] of on(this.tail, 'line')) {
                     yield line;
+                    serverLogger.info(line);
                 }
             } catch (err) {
                 logger.error('Tail error: Error tailing log file: %s', err.message);

@@ -40,7 +40,10 @@ export class VRisingServer extends EventEmitter {
             pid: null,
             processExitCode: null,
             scheduledOperation: null,
-            currentSaveNumber: null
+            currentSaveNumber: null,
+            publicIp: null,
+            gamePort: null,
+            queryPort: null
         }
 
         this.serverProcess = null;
@@ -113,26 +116,43 @@ export class VRisingServer extends EventEmitter {
         this.regexpArray = [
             {
                 regex: /Bootstrap - Time: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}), Version: (.*)/g,
-                parse: async (matches) => {
-                    this.parseServerInfo(matches);
+                parse: async ([, timeStr, version]) => {
+                    this._updateServerInfo({
+                        version,
+                        time: dayjs.utc(timeStr, 'YYYY-MM-DD HH:mm:ss').toDate()
+                    });
                 }
             },
             {
                 regex: /Setting breakpad minidump AppID = (\d*)/g,
-                parse: async (matches) => {
-                    this.parseAppId(matches);
+                parse: async ([, appId]) => {
+                    this._updateServerInfo({
+                        appID: appId
+                    })
                 }
             },
             {
-                regex: /assigned identity steamid:([0-9]+)/g,
-                parse: async (matches) => {
-                    this.parseAssignedIdentity(matches);
+                regex: /SteamPlatformSystem - OnPolicyResponse - Game server SteamID: ([0-9]+)/g,
+                parse: async ([, steamId]) => {
+                    this._updateServerInfo({
+                        steamID: steamId
+                    });
+                }
+            },
+            {
+                regex: /SteamPlatformSystem - OnPolicyResponse - Public IP: ([0-9]{1,3}.*)/g,
+                parse: ([, publicIp]) => {
+                    this._updateServerInfo({
+                        publicIp
+                    })
                 }
             },
             {
                 regex: /SteamPlatformSystem - Server connected to Steam successfully!/g,
                 parse: () => {
-                    this.setConnectedToSteam();
+                    this._updateServerInfo({
+                        connectedToSteam: true
+                    });
                 }
             },
             {
@@ -143,20 +163,29 @@ export class VRisingServer extends EventEmitter {
             },
             {
                 regex: /PersistenceV2 - GameVersion of Loaded Save: (.*), Current GameVersion: (.*)/g,
-                parse: async (matches) => {
-                    this.parseGameVersion(matches);
+                parse: async ([, loadedSaveGameVersion, currentGameVersion]) => {
+                    this._updateServerInfo({
+                        loadedSaveGameVersion,
+                        currentGameVersion,
+                        isSaveLoaded: true,
+                        isSaveVersionIdentical: loadedSaveGameVersion === currentGameVersion
+                    });
                 }
             },
             {
                 regex: /PersistenceV2 - Finished Saving to '.*AutoSave_(\d*)\.(save|save\.gz)'/g,
-                parse: async (matches) => {
-                    this.parseLastAutoSave(matches);
+                parse: async ([, autoSaveNumber, extension]) => {
+                    autoSaveNumber = parseInt(autoSaveNumber);
+                    logger.info('AutoSave %d detected !', autoSaveNumber);
+                    this.parseLoadedSave(autoSaveNumber, extension, true);
                 }
             },
             {
                 regex: /Loaded Save:AutoSave_(\d*)\.(save|save\.gz)/g,
-                parse: async (matches) => {
-                    this.parseLoadedSave(matches);
+                parse: async ([, saveNumber, extension]) => {
+                    saveNumber = parseInt(saveNumber);
+                    logger.debug('(Server) Save %d loaded with extension %s !', saveNumber, extension);
+                    this.parseLoadedSave(saveNumber, extension, false);
                 }
             },
             {
@@ -167,8 +196,8 @@ export class VRisingServer extends EventEmitter {
             },
             {
                 regex: /\[rcon] Started listening on (.*), Password is: "(.*)"/g,
-                parse: async ([, , password]) => {
-                    await this._connectRConClient(password);
+                parse: ([, , password]) => {
+                    this.enableRConClient(password);
                 }
             }
         ]
@@ -178,7 +207,7 @@ export class VRisingServer extends EventEmitter {
         return this.config;
     }
 
-    async _connectRConClient(password) {
+    enableRConClient(password) {
         const {Rcon: serverConfig} = this.hostSettings.current ? this.hostSettings.current : {};
         const {rcon: apiConfig} = this.config;
 
@@ -197,7 +226,7 @@ export class VRisingServer extends EventEmitter {
             password
         };
 
-        return this.rConClient.connect(config);
+        this.rConClient.setConfig(config);
     }
 
     setConfig(config) {
@@ -205,7 +234,9 @@ export class VRisingServer extends EventEmitter {
         this.apiClient.updateOptions(config.server.api);
         this._updateServerInfo({
             serverName: config.server.name,
-            saveName: config.server.saveName
+            saveName: config.server.saveName,
+            gamePort: config.server.gamePort,
+            queryPort: config.server.queryPort
         });
     }
 
@@ -218,31 +249,6 @@ export class VRisingServer extends EventEmitter {
         logger.debug('New Server Info %j', this.serverInfo);
         this.emit('server_info', this.serverInfo);
         return this.serverInfo;
-    }
-
-    parseServerInfo([, timeStr, version]) {
-        return this._updateServerInfo({
-            version,
-            time: dayjs.utc(timeStr, 'YYYY-MM-DD HH:mm:ss').toDate()
-        });
-    }
-
-    parseAssignedIdentity([, steamId]) {
-        return this._updateServerInfo({
-            steamID: steamId
-        });
-    }
-
-    parseAppId([, appId]) {
-        return this._updateServerInfo({
-            appID: appId
-        })
-    }
-
-    setConnectedToSteam() {
-        return this._updateServerInfo({
-            connectedToSteam: true
-        });
     }
 
     setSetupComplete() {
@@ -269,15 +275,6 @@ export class VRisingServer extends EventEmitter {
             currentGameVersion: null,
             isSaveLoaded: false,
             isSaveVersionIdentical: null
-        });
-    }
-
-    parseGameVersion([, loadedSaveGameVersion, currentGameVersion]) {
-        return this._updateServerInfo({
-            loadedSaveGameVersion,
-            currentGameVersion,
-            isSaveLoaded: true,
-            isSaveVersionIdentical: loadedSaveGameVersion === currentGameVersion
         });
     }
 
@@ -616,38 +613,16 @@ export class VRisingServer extends EventEmitter {
         return this.banList;
     }
 
-    parseLastAutoSave([, autoSaveNumber, extension]) {
-        autoSaveNumber = parseInt(autoSaveNumber);
-        logger.info('AutoSave %d detected !', autoSaveNumber);
-        if (this.serverInfo.currentSaveNumber !== autoSaveNumber) {
-            this._updateServerInfo({
-                currentSaveNumber: autoSaveNumber
-            });
-
-            if (this.config && this.config.server && this.config.server.dataPath) {
-                this.emit('auto_save', {
-                    config: this.config,
-                    saveNumber: autoSaveNumber,
-                    fileName: 'AutoSave_',
-                    extension
-                });
-            }
-        }
-    }
-
-    parseLoadedSave([, saveNumber, extension]) {
-        saveNumber = parseInt(saveNumber);
-        logger.debug('(Server) Save %d loaded with extension %s !', saveNumber, extension);
+    parseLoadedSave(saveNumber, extension, isAutoSave) {
         if (this.serverInfo.currentSaveNumber !== saveNumber) {
             this._updateServerInfo({
                 currentSaveNumber: saveNumber
             });
 
             if (this.config && this.config.server && this.config.server.dataPath) {
-                this.emit('loaded_save', {
+                this.emit(isAutoSave ? 'auto_save' : 'loaded_save', {
                     config: this.config,
                     saveNumber,
-                    fileName: 'AutoSave_',
                     extension
                 });
             }

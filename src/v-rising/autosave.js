@@ -11,6 +11,7 @@ export class VRisingSaveManager extends EventEmitter {
     constructor(server) {
         super();
         this.server = server;
+        this.fileName = 'AutoSave';
         this.server.on('auto_save', info => this.handleSaveBackup(info));
         this.server.on('loaded_save', info => this.handleSaveBackup(info));
     }
@@ -24,10 +25,10 @@ export class VRisingSaveManager extends EventEmitter {
     }
 
     async handleSaveBackup(info) {
-        const {config, fileName, saveNumber, extension} = info;
+        const {config, saveNumber, extension} = info;
         logger.info('Save %s loaded with extension %s', saveNumber, extension);
         const baseSaveDir = this._saveDir(config);
-        const saveFilePath = path.join(baseSaveDir, `${fileName}${saveNumber}.${extension}`);
+        const saveFilePath = path.join(baseSaveDir, `${this.fileName}_${saveNumber}.${extension}`);
         const backupDir = this._backupDir(config);
 
         const isCompressed = extension === 'save.gz';
@@ -40,7 +41,7 @@ export class VRisingSaveManager extends EventEmitter {
 
         await this.checkBackupDir(backupDir);
 
-        const backupFilePath = path.resolve(backupDir, `${fileName}${saveNumber}.${!isCompressed && config.server.compressBackupSaves ? 'save.gz' : extension}`);
+        const backupFilePath = path.resolve(backupDir, `${this.fileName}_${saveNumber}.${!isCompressed && config.server.compressBackupSaves ? 'save.gz' : extension}`);
         try {
             const saved = await this.executeBackup(saveFilePath, backupFilePath, config, saveNumber);
             if (saved) {

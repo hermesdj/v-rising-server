@@ -36,9 +36,7 @@ export class VRisingSteamQuery extends EventEmitter {
         this.serverRules = await this.queryRules();
         this.emit('rules', this.serverRules);
 
-        for await (const info of this.queryData()) {
-            console.log('retrieved info !', info);
-            const {playerCount} = info;
+        for await (const playerCount of this.queryData()) {
 
             if (playerCount !== undefined) {
                 await this.store.storePlayerCount(playerCount);
@@ -51,10 +49,11 @@ export class VRisingSteamQuery extends EventEmitter {
             try {
                 const playerResponse = await this.queryPlayers();
                 if (playerResponse) {
-                    yield playerResponse;
+                    yield playerResponse.playerCount;
                 }
             } catch (err) {
-                logger.error('Error on steam query players: %s', err.message);
+                logger.warn('Error on steam query players: %s', err.message);
+                yield 0;
             }
             await new Promise(resolve => setTimeout(resolve, this.delay));
         }

@@ -8,6 +8,7 @@ import router from "./routes/index.js";
 import cors from 'cors';
 import path from "path";
 import {fileURLToPath} from "url";
+import {logger} from "../logger.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -54,6 +55,8 @@ app.get('*', function (request, res) {
 });
 
 app.use((err, req, res, next) => {
+    logger.error({stack: err.stack, type: err.name}, err.message);
+    logger.error('%')
     res.status(err.status || 500);
-    res.send(err);
+    res.json({message: err.message});
 });
