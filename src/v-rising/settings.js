@@ -2,9 +2,12 @@ import fs from "fs";
 import {mkdirp} from "mkdirp";
 import path from "path";
 import {logger} from "../logger.js";
+import url from "url";
+
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 const hostSettingsPath = (config) => path.join(config.server.dataPath, 'Settings', 'ServerHostSettings.json');
-const gameSettingsPath = (config) => path.join(config.server.dataPath, 'Settings', 'ServerGameSettings.json')
+const gameSettingsPath = (config) => path.join(config.server.dataPath, 'Settings', 'ServerGameSettings.json');
 
 export const checkServerSettingsDirectory = async (config) => {
     if (!fs.existsSync(config.server.dataPath)) {
@@ -55,12 +58,12 @@ const checkGameSettings = async (config) => {
 }
 
 export const getDefaultGameSettings = async () => {
-    const content = await fs.promises.readFile(path.join('./settings', 'ServerGameSettings.json'), 'utf8');
+    const content = await fs.promises.readFile(path.join(__dirname, '..', '..', 'settings', 'ServerGameSettings.json'), 'utf8');
     return JSON.parse(content);
 }
 
 export const getDefaultHostSettings = async () => {
-    const content = await fs.promises.readFile(path.join('./settings', 'ServerHostSettings.json'), 'utf8');
+    const content = await fs.promises.readFile(path.join(__dirname, '..', '..', 'settings', 'ServerHostSettings.json'), 'utf8');
     return JSON.parse(content);
 }
 
