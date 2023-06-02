@@ -1,70 +1,71 @@
-import {checkServerSettingsDirectory} from "./settings.js";
 import fs from "fs";
 import {logger} from "../logger.js";
-import path from "path";
 import lodash from "lodash";
+import {EventEmitter} from "events";
+import {DbManager} from "../db-manager.js";
 
-const adminListPath = (config) => path.join(config.server.dataPath, 'Settings', 'adminlist.txt');
-const banListPath = (config) => path.join(config.server.dataPath, 'Settings', 'banlist.txt')
-
-const checkAdminList = async (config) => {
-    if (!fs.existsSync(adminListPath(config))) {
-        let defaultAdminList = config.server.defaultAdminList;
-        if (!defaultAdminList || !Array.isArray(defaultAdminList)) {
-            logger.debug('Init default admin list to empty array');
-            defaultAdminList = [];
-        }
-
-        logger.info('Init default admin list from config: %j', defaultAdminList);
-        await writeAdminList(config, defaultAdminList);
-    } else {
-        logger.debug('Admin list file already exists');
+export class VRisingUserManager extends EventEmitter {
+    constructor(server) {
+        super();
+        this.server = server;
+        this.store = DbManager.createFlatDb('game-users-db');
     }
-}
 
-const checkBanList = async (config) => {
-    if (!fs.existsSync(banListPath(config))) {
-        let defaultBanList = config.server.defaultBanList;
-
-        if (!defaultBanList || !Array.isArray(defaultBanList)) {
-            defaultBanList = [];
-        }
-
-        logger.info('Init default ban list from config');
-        await writeBanList(config, defaultBanList);
-    } else {
-        logger.debug('Ban list file already exists');
+    isInitialized() {
+        return this.store.get('initialized');
     }
-}
 
-export const writeAdminList = async (config, adminList) => {
-    const filePath = adminListPath(config);
-    logger.debug('Writing adminlist file to %s', filePath);
-    await fs.promises.writeFile(filePath, adminList.join('\n'));
-}
+    async initUserManager(config) {
+        if (!this.isInitialized()) {
+            await this.store.assign({
+                initialized: true,
+                adminList: config.defaultAdminList || [],
+                banList: config.defaultBanList || []
+            });
+        }
+    }
 
-export const writeBanList = async (config, banList) => {
-    const filePath = banListPath(config);
-    logger.debug('Writing ban list file to %s', filePath);
-    await fs.promises.writeFile(filePath, banList.join('\n'));
-}
+    getBanList() {
+        return this.store.get('banList') || [];
+    }
 
-export const getAdminList = async (config) => {
-    const content = await fs.promises.readFile(adminListPath(config), 'utf8');
-    return content.replace(/\r?\n/g, '\n')
-        .split('\n')
-        .filter(val => !lodash.isEmpty(val));
-}
+    getAdminList() {
+        return this.store.get('adminList') || [];
+    }
 
-export const getBanList = async (config) => {
-    const content = await fs.promises.readFile(banListPath(config), 'utf8');
-    return content.replace(/\r?\n/g, '\n')
-        .split('\n')
-        .filter(val => !lodash.isEmpty(val));
-}
+    async banUser(id) {
+        if (!this.getBanList().includes(id)) {
+            this.store.chain.get('banList').push(id).value();
+            await this.store.write();
+            this.emit('banned_user', id);
+        }
+    }
 
-export const initVRisingUsers = async (config) => {
-    await checkServerSettingsDirectory(config);
-    await checkAdminList(config);
-    await checkBanList(config);
+    async unbanUser(id) {
+        if (this.getBanList().includes(id)) {
+            this.store.chain.get('banList').remove(id).value();
+            await this.store.write();
+            this.emit('unbanned_user', id);
+        }
+    }
+
+    async unsetAdmin(id) {
+        if (this.getAdminList().includes(id)) {
+            this.store.chain.get('adminList').remove(id).value();
+            await this.store.write();
+            this.emit('unset_admin', id);
+        }
+    }
+
+    async setAdminList(adminList) {
+        this.store.chain.get('adminList').remove().union(adminList).value();
+        await this.store.write();
+        this.emit('changed_admin_list', this.adminList);
+    }
+
+    async setBanList(banList) {
+        this.store.chain.get('banList').remove().union(banList).value();
+        await this.store.write();
+        this.emit('changed_ban_list', this.banList);
+    }
 }

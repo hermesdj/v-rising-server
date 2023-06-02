@@ -2,13 +2,17 @@ import {Low} from "lowdb";
 import path from "path";
 import url from "url";
 import {JSONFile} from "lowdb/node";
-import {logger} from "./logger.js";
 import lodash from "lodash";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 export class DbManager {
     static databases = new Map();
+
+    static initAdapter(dbName) {
+        const dbFile = path.resolve(path.join(__dirname, '..', 'data', `${dbName}.json`));
+        return new JSONFile(dbFile);
+    }
 
     /**
      * Create a new LowDB using ${dbName}.json as file name and using {[collection]: []} as default value
@@ -19,9 +23,7 @@ export class DbManager {
     static createDb(dbName, collection) {
         if (this.databases.has(dbName)) return this.databases.get(dbName);
 
-        const dbFile = path.resolve(path.join(__dirname, '..', 'data', `${dbName}.json`));
-        const adapter = new JSONFile(dbFile);
-        const db = new Low(adapter, {[collection]: []});
+        const db = new Low(this.initAdapter(dbName), {[collection]: []});
 
         const wrapped = new DbWrapper(db, collection);
 
@@ -30,17 +32,45 @@ export class DbManager {
         return wrapped;
     }
 
+    static createFlatDb(dbName) {
+        if (this.databases.has(dbName)) return this.databases.get(dbName);
+        const db = new Low(this.initAdapter(dbName), {});
+
+        const wrapped = new FlatDbWrapper(db);
+
+        this.databases.set(dbName, wrapped);
+
+        return wrapped;
+    }
+
     static async initAllDatabases() {
-        for (const [name, db] of this.databases.entries()) {
-            logger.info('Initializing db %s', name);
+        for (const [, db] of this.databases.entries()) {
             await db.read();
         }
     }
 }
 
-class DbWrapper {
-    constructor(db, collection) {
+class AbstractDbWrapper {
+    constructor(db) {
         this.db = db;
+    }
+
+    async read() {
+        return this.db.read().then(() => {
+            this.initialized = true;
+            return this;
+        });
+    }
+
+    async write() {
+        await this.db.write();
+        return this;
+    }
+}
+
+class DbWrapper extends AbstractDbWrapper {
+    constructor(db, collection) {
+        super(db);
         this.initialized = false;
         this.chain = lodash.chain(db).get('data').get(collection);
     }
@@ -104,5 +134,40 @@ class DbWrapper {
     async clear() {
         this.chain.remove().value();
         await this.db.write();
+    }
+}
+
+class FlatDbWrapper extends AbstractDbWrapper {
+    constructor(db) {
+        super(db);
+        this.initialized = false;
+        this.chain = lodash.chain(db).get('data');
+    }
+
+    async read() {
+        return this.db.read().then(() => {
+            this.initialized = true;
+            return this;
+        });
+    }
+
+    async write() {
+        await this.db.write();
+        return this;
+    }
+
+    async set(key, value) {
+        const result = this.chain.set(key, value).value();
+        await this.write();
+        return result;
+    }
+
+    async assign(obj) {
+        this.chain.assign(obj).value();
+        await this.write();
+    }
+
+    get(key) {
+        return this.chain.get(key).value();
     }
 }

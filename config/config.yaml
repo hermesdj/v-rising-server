@@ -22,7 +22,9 @@ server:
   logFile: ./logs/server.log
   gamePort: 9876
   queryPort: 9877
-  defaultAdminList: [ ]
+  defaultAdminList:
+    - '76561198005048084'
+  defaultBanList: [ ]
   api:
     enabled: true
     bindAddress: \*

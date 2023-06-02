@@ -50,8 +50,6 @@ export function startSocketIoServer(httpServer) {
     vRisingServer.on('server_stopped', (info) => io.emit('server stopped', info));
     vRisingServer.on('changed_host_settings', (info) => io.emit('server update host settings', info));
     vRisingServer.on('changed_game_settings', (info) => io.emit('server update game settings', info));
-    vRisingServer.on('changed_admin_list', (info) => io.emit('server update admin list', info));
-    vRisingServer.on('changed_ban_list', (info) => io.emit('server update ban list', info));
     vRisingServer.on('operation_start', (serverInfo) => io.emit('operation start', serverInfo));
     vRisingServer.on('operation_execute', (serverInfo) => io.emit('operation execute', serverInfo));
     vRisingServer.on('operation_done', (serverInfo) => io.emit('operation done', serverInfo));
@@ -59,6 +57,10 @@ export function startSocketIoServer(httpServer) {
     vRisingServer.on('operation_progress', (serverInfo) => io.emit('operation progress', serverInfo));
     vRisingServer.on('loaded_save', (info) => io.emit('loaded save', info));
     vRisingServer.on('auto_save', (info) => io.emit('auto save', info));
+
+    vRisingServer.userManager.on('changed_admin_list', (info) => io.emit('server update admin list', info));
+    vRisingServer.userManager.on('changed_ban_list', (info) => io.emit('server update ban list', info));
+
     vRisingServer.playerManager.on('player_connected', (player) => io.emit('player connected', player));
     vRisingServer.playerManager.on('player_disconnected', (player) => io.emit('player disconnected', player));
     vRisingServer.playerManager.on('player_updated', (player) => io.emit('player updated', player));

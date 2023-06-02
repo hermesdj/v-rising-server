@@ -5,7 +5,6 @@ import {initBotCommands} from "./src/discord/index.js";
 import {loadServerConfig} from "./src/config.js";
 import {initVRisingServerSettings} from "./src/v-rising/settings.js";
 import {vRisingServer} from "./src/v-rising/server.js";
-import {initVRisingUsers} from "./src/v-rising/users.js";
 import {DbManager} from "./src/db-manager.js";
 
 (async () => {
@@ -16,10 +15,9 @@ import {DbManager} from "./src/db-manager.js";
     logger.info('Init Discord Bot');
     await initBotCommands();
     logger.info('Init VRising server');
-    await initVRisingUsers(config);
     await initVRisingServerSettings(config);
 
-    vRisingServer.setConfig(config);
+    await vRisingServer.initServer(config);
 
     if (config.server.runOnStartup) {
         await vRisingServer.startServer(config);

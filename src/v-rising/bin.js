@@ -22,22 +22,23 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
         fs.unlinkSync(config.server.logFile);
     }
 
-    const options = {};
-
     const processLogger = pino({level: 'info'}, processLogStream);
 
     return new Promise(async (resolve, reject) => {
         switch (platform) {
             case 'win32':
-                logger.debug('Starting VRising server on win32 platform with file path %s and args %j', fullExeFilePath, args);
-                vRisingServer.serverProcess = spawn(fullExeFilePath, [
+                const winArgs = [
                     '-persistentDataPath', config.server.dataPath,
                     '-serverName', config.server.name,
                     '-saveName', config.server.saveName,
                     '-logFile', config.server.logFile,
                     config.server.gamePort,
                     config.server.queryPort
-                ], options);
+                ];
+                logger.debug('Starting VRising server on win32 platform with file path %s and args %j', fullExeFilePath, winArgs);
+                vRisingServer.serverProcess = spawn(fullExeFilePath, winArgs, {
+                    env: process.env
+                });
                 break;
             case 'linux':
                 const linuxArgs = [
@@ -80,7 +81,7 @@ export const startVRisingServerExecution = async (config, vRisingServer) => {
         await vRisingServer.listenToServerProcess();
 
         logger.debug('Waiting for log file %s', config.server.logFile);
-        const fileExists = await waitForFile(config.server.logFile, 120000);
+        const fileExists = await waitForFile(config.server.logFile, 600000);
 
         if (fileExists) {
             logger.debug('Log file is ready to be parsed : %s', config.server.logFile);

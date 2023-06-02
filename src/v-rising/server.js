@@ -9,7 +9,7 @@ import {VRisingRConClient} from "./rcon.js";
 import {startVRisingServerExecution, stopVRisingServerExecution} from "./bin.js";
 import {sleep} from "./utils.js";
 import {getGameSettings, getHostSettings, writeGameSettings, writeHostSettings} from "./settings.js";
-import {getAdminList, getBanList, writeAdminList, writeBanList} from "./users.js";
+import {VRisingUserManager} from "./users.js";
 import {VRisingSaveManager} from "./autosave.js";
 import {VRisingServerApiClient} from "./metrics/api.js";
 import {LogWatcher} from "./logs.js";
@@ -112,6 +112,7 @@ export class VRisingServer extends EventEmitter {
         this.apiClient = new VRisingServerApiClient(this.config);
         this.rConClient = new VRisingRConClient();
         this.steamQuery = new VRisingSteamQuery(this);
+        this.userManager = new VRisingUserManager(this);
 
         this.regexpArray = [
             {
@@ -491,8 +492,8 @@ export class VRisingServer extends EventEmitter {
     }
 
     async onAdminList(isInitialLoad = false, adminList = null) {
-        if (!adminList) {
-            adminList = await getAdminList(this.config);
+        if (!adminList || !Array.isArray(adminList)) {
+            adminList = this.userManager.getAdminList();
         }
 
         if (isInitialLoad) {
@@ -502,13 +503,12 @@ export class VRisingServer extends EventEmitter {
         this.adminList.current = [...adminList];
 
         this.emit('loaded_admin_list', this.adminList);
-
         await this.playerManager.parseAdminList(this.adminList.current);
     }
 
     async onBanList(isInitialLoad = false, banList = null) {
-        if (!banList) {
-            banList = await getBanList(this.config);
+        if (!banList || !Array.isArray(banList)) {
+            banList = this.userManager.getBanList();
         }
 
         if (isInitialLoad) {
@@ -592,10 +592,9 @@ export class VRisingServer extends EventEmitter {
     }
 
     async changeAdminList(adminList) {
-        if (!lodash.isEqual(adminList, this.adminList)) {
-            await writeAdminList(this.config, adminList);
+        if (!lodash.isEqual(adminList, this.userManager.getAdminList())) {
+            await this.userManager.setAdminList(adminList);
             this.adminList.current = adminList;
-            this.emit('changed_admin_list', this.adminList);
             await this.playerManager.parseAdminList(adminList);
         }
 
@@ -603,10 +602,9 @@ export class VRisingServer extends EventEmitter {
     }
 
     async changeBanList(banList) {
-        if (!lodash.isEqual(banList, this.banList)) {
-            await writeBanList(this.config, banList);
+        if (!lodash.isEqual(banList, this.userManager.getBanList())) {
+            await this.userManager.setBanList(banList);
             this.banList.current = banList;
-            this.emit('changed_ban_list', this.banList);
             await this.playerManager.parseBanList(banList);
         }
 
@@ -657,6 +655,11 @@ export class VRisingServer extends EventEmitter {
         if (this.logWatcher && this.logWatcher.isWatching) {
             this.logWatcher.stopWatching();
         }
+    }
+
+    async initServer(config) {
+        this.setConfig(config);
+        await this.userManager.initUserManager(config.server);
     }
 }
 

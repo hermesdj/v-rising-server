@@ -1,7 +1,7 @@
 import Router from "express-promise-router";
 import {vRisingServer} from "../../v-rising/server.js";
-import {getAdminList, getBanList} from "../../v-rising/users.js";
 import {ensureAdmin} from "./utils.js";
+import {logger} from "../../logger.js";
 
 const router = Router();
 
@@ -11,11 +11,11 @@ router.get('/', async (req, res) => {
 
     if (isAllowed) {
         if (!adminList.current) {
-            adminList.current = await getAdminList(req.config);
+            adminList.current = vRisingServer.userManager.getAdminList();
         }
 
         if (!banList.current) {
-            banList.current = await getBanList(req.config);
+            banList.current = vRisingServer.userManager.getBanList();
         }
     } else {
         adminList.current = [];
@@ -51,13 +51,17 @@ router.post('/', ensureAdmin, async (req, res) => {
 });
 
 router.get('/admins', (req, res) => {
-    console.log('/admins called !');
-    res.send('76561198005048084');
+    logger.debug('Req to /admins with method %s, from %s, with query %j', req.method, req.ip, req.query);
+    const adminResponse = vRisingServer.userManager.getAdminList();
+    logger.debug('Responding to /admins with %s', adminResponse.join(', '));
+    res.send(adminResponse.join('\n'));
 });
 
 router.get('/banned', (req, res) => {
-    console.log('/banned called !');
-    res.send('');
+    logger.debug('Req to /banned with method %s, from %s, with query %j', req.method, req.ip, req.query);
+    const bannedResponse = vRisingServer.userManager.getBanList();
+    logger.debug('Responding to /banned with %s', bannedResponse.join(', '));
+    res.send(bannedResponse.join('\n'));
 });
 
 export default router;

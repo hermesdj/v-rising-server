@@ -51,6 +51,7 @@ export const loadServerConfig = () => {
             gamePort: env.get('V_RISING_GAME_PORT').default(9876).asPortNumber(),
             queryPort: env.get('V_RISING_QUERY_PORT').default(9877).asPortNumber(),
             defaultAdminList: env.get('V_RISING_DEFAULT_ADMIN_LIST').default('').asArray(),
+            defaultBanList: env.get('V_RISING_DEFAULT_BAN_LIST').default('').asArray(),
             api: {
                 enabled: env.get('V_RISING_API_ENABLED').default('true').asBoolStrict(),
                 bindAddress: env.get('V_RISING_API_BIND_ADDRESS').default('*').asString(),

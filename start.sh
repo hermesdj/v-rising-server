@@ -4,8 +4,6 @@
 s=/mnt/vrising/server
 p=/mnt/vrising/persistentdata
 logFile=$p/VRising-Server.log
-serverName=$V_RISING_SERVER_NAME
-saveName=$V_RISING_SAVE_NAME
 ports=()
 
 # Parse the variables from arguments
@@ -27,16 +25,6 @@ while [[ $# -gt 0 ]]; do
     shift
     shift
     ;;
-  --save|--save-name)
-    saveName="$2"
-    shift
-    shift
-    ;;
-  --name|--server-name)
-    serverName="$2"
-    shift
-    shift
-    ;;
   *)
     ports+=("$1")
     shift
@@ -47,8 +35,6 @@ done;
 echo "server path is $s";
 echo "persistent data path is $p";
 echo "log file is $logFile";
-echo "server name is $serverName";
-echo "save name is $saveName";
 for item in "${ports[@]}"
 do
 echo "ports are $item";
@@ -109,8 +95,6 @@ Xvfb :0 -screen 0 1024x768x16 &
 export p
 export s
 export logFile
-export serverName
-export saveName
 export ports
 
 # Launch the server as a background process
