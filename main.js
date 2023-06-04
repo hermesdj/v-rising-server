@@ -1,22 +1,25 @@
 import 'dotenv/config';
-import {startExpressApi} from "./src/api/http.js";
+import startHttpServer from "./src/api/http.js";
 import {logger} from "./src/logger.js";
-import {initBotCommands} from "./src/discord/index.js";
+import {VRisingDiscordBot} from "./src/discord/index.js";
 import {loadServerConfig} from "./src/config.js";
-import {initVRisingServerSettings} from "./src/v-rising/settings.js";
-import {vRisingServer} from "./src/v-rising/server.js";
+import {VRisingServer} from "./src/v-rising/server.js";
 import {DbManager} from "./src/db-manager.js";
 
 (async () => {
     const config = loadServerConfig();
-    logger.info('Starting VRising Server API');
-    const httpServer = await startExpressApi(config);
-    await DbManager.initAllDatabases();
     logger.info('Init Discord Bot');
-    await initBotCommands();
-    logger.info('Init VRising server');
-    await initVRisingServerSettings(config);
+    const bot = new VRisingDiscordBot(config);
+    logger.info('Init VRising Server');
+    const vRisingServer = new VRisingServer(config, bot);
+    logger.info('setup Discord Bot');
+    await bot.setup(vRisingServer);
+    logger.info('Starting VRising Server API');
+    const httpServer = await startHttpServer(config, vRisingServer);
+    logger.info('Init LowDB Manager');
+    await DbManager.initAllDatabases();
 
+    logger.info('Init VRising server');
     await vRisingServer.initServer(config);
 
     if (config.server.runOnStartup) {

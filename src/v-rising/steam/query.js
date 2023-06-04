@@ -52,8 +52,11 @@ export class VRisingSteamQuery extends EventEmitter {
                     yield playerResponse.playerCount;
                 }
             } catch (err) {
-                logger.warn('Error on steam query players: %s', err.message);
-                yield 0;
+                if (err.message === 'Timeout reached. Possible reasons: You are being rate limited; Timeout too short; Wrong server host configured;') {
+                    yield 0;
+                } else {
+                    logger.warn('Steam Query Players error : %s', err.message);
+                }
             }
             await new Promise(resolve => setTimeout(resolve, this.delay));
         }

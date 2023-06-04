@@ -76,6 +76,7 @@ export const loadServerConfig = () => {
             appId: env.get('DISCORD_APP_ID').asString(),
             publicKey: env.get('DISCORD_PUBLIC_KEY').asString(),
             channelId: env.get('DISCORD_VRISING_CHANNEL_ID').asString(),
+            channelIds: env.get('DISCORD_VRISING_CHANNEL_IDS').default([]).asArray(),
             roleId: env.get('DISCORD_ROLE_ID').asString()
         },
         rcon: {
@@ -94,7 +95,7 @@ export const loadServerConfig = () => {
         }
     };
 
-    config = lodash.defaultsDeep(envConfig, loadedYaml);
+    config = lodash.merge(loadedYaml, envConfig);
 
     return config;
 };

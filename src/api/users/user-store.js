@@ -1,12 +1,11 @@
 import {logger} from "../../logger.js";
 import lodash from "lodash";
-import {vRisingServer} from "../../v-rising/server.js";
 import {DbManager} from "../../db-manager.js";
 
 export class UserStore {
-    constructor(config) {
+    constructor(server) {
         this.db = DbManager.createDb('users-db', 'users');
-        this.config = config;
+        this.server = server;
     }
 
     /**
@@ -22,9 +21,9 @@ export class UserStore {
 
         if (!user) {
             // Check if user is admin
-            const isAdmin = await this.isAdmin(id);
-            const isPlayer = await this.isPlayer(id);
-            const isBanned = await this.isBanned(id);
+            const isAdmin = this.server.userManager.isAdmin(id);
+            const isPlayer = this.server.playerManager.isPlayer(id);
+            const isBanned = this.server.userManager.isBanned(id);
 
             user = {id, username, isAdmin, isPlayer};
 
@@ -42,28 +41,6 @@ export class UserStore {
         }
 
         return user;
-    }
-
-    async isAdmin(steamId) {
-        const {current} = vRisingServer.adminList;
-
-        const adminList = !current || current.length === 0 ? vRisingServer.userManager.getAdminList() : [...current];
-
-        return adminList && Array.isArray(adminList) && adminList.includes(steamId);
-    }
-
-    async isBanned(steamId) {
-        let {current} = vRisingServer.banList;
-
-        const banList = !current || current.length === 0 ? vRisingServer.userManager.getBanList() : [...current];
-
-        return banList && Array.isArray(banList) && banList.includes(steamId);
-    }
-
-    async isPlayer(steamId) {
-        await vRisingServer.playerManager.store.read();
-        let playerList = vRisingServer.playerManager.store.all();
-        return playerList && Array.isArray(playerList) && playerList.some(player => lodash.isEqual(player.steamID, steamId));
     }
 
     serializeUser(user) {

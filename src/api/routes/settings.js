@@ -1,7 +1,6 @@
 import Router from "express-promise-router";
-import {getGameSettings, getHostSettings} from "../../v-rising/settings.js";
+import {getGameSettings, getHostSettings} from "../../v-rising/managers/settings-manager.js";
 import {ensureAdmin} from "./utils.js";
-import {vRisingServer} from "../../v-rising/server.js";
 
 const router = Router();
 
@@ -27,15 +26,7 @@ const parseHostSettings = (req, {current, lastApplied}) => {
 }
 
 router.get('/', async (req, res) => {
-    const {gameSettings, hostSettings} = vRisingServer;
-
-    if (!hostSettings.current) {
-        hostSettings.current = await getHostSettings(req.config);
-    }
-
-    if (!gameSettings.current) {
-        gameSettings.current = await getGameSettings(req.config);
-    }
+    const {gameSettings, hostSettings} = req.vRisingServer.settingsManager.getSettings();
 
     res.json({
         hostSettings: parseHostSettings(req, hostSettings),
@@ -45,13 +36,13 @@ router.get('/', async (req, res) => {
 
 router.post('/host', ensureAdmin, async (req, res) => {
     const hostSettings = req.body;
-    const result = await vRisingServer.changeHostSettings(hostSettings);
+    const result = await req.vRisingServer.settingsManager.updateHostSettings(hostSettings);
     res.json(result);
 });
 
 router.post('/game', ensureAdmin, async (req, res) => {
     const gameSettings = req.body;
-    const result = await vRisingServer.changeGameSettings(gameSettings);
+    const result = await req.vRisingServer.settingsManager.updateGameSettings(gameSettings);
     res.json(result);
 })
 

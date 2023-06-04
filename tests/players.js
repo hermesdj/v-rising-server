@@ -1,6 +1,6 @@
 import fs from 'fs';
 import readline from 'node:readline/promises';
-import {db, VRisingPlayerManager} from "../src/v-rising/players.js";
+import {db, VRisingPlayerManager} from "../src/v-rising/managers/player-manager.js";
 import pino from "pino";
 
 const logger = pino({

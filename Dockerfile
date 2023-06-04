@@ -51,11 +51,12 @@ WORKDIR /usr/src/vrising-api
 COPY package*.json ./
 RUN npm install --omit=dev
 
+COPY bin bin/
 COPY src src/
 COPY main.js .
-COPY start.sh .
-COPY launch_server.sh .
-COPY stop_server.sh .
+COPY bin/start.sh .
+COPY bin/launch_server.sh .
+COPY bin/stop_server.sh .
 COPY settings settings/
 COPY public public/
 RUN mkdir data
@@ -63,7 +64,7 @@ RUN mkdir logs
 
 EXPOSE 8080
 
-RUN chmod +x ./start.sh
-RUN chmod +x ./launch_server.sh
-RUN chmod +x ./stop_server.sh
+RUN chmod +x ./bin/start.sh
+RUN chmod +x ./bin/launch_server.sh
+RUN chmod +x ./bin/stop_server.sh
 CMD ["pm2-runtime", "main.js"]

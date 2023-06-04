@@ -1,11 +1,10 @@
 import {SlashCommandBuilder} from "@discordjs/builders";
-import {vRisingServer} from "../../v-rising/server.js";
 
 const playersCommand = new SlashCommandBuilder().setName('v-players').setDescription('Afficher la liste des joueurs actuellement connectés');
 export const data = playersCommand.toJSON();
 
-export const execute = async (interaction, api) => {
-    const players = vRisingServer.playerManager.getConnectedPlayers();
+export const execute = async (interaction, config, server) => {
+    const players = server.playerManager.getConnectedPlayers();
 
     let content = `Il y a actuellement ${players.length} joueurs connectés`;
 
@@ -15,7 +14,8 @@ export const execute = async (interaction, api) => {
         content += '.';
     }
 
-    await api.interactions.reply(interaction.id, interaction.token, {
-        content
+    await interaction.reply({
+        content,
+        ephemeral: true
     });
 }

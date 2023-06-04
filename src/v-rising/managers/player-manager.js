@@ -1,6 +1,7 @@
 import {EventEmitter} from "events";
 import lodash from 'lodash';
-import {DbManager} from "../db-manager.js";
+import {DbManager} from "../../db-manager.js";
+import {logger} from "../../logger.js";
 
 class PlayerStore {
     constructor() {
@@ -28,13 +29,14 @@ class PlayerStore {
     }
 
     write() {
-        return this.db.db.write();
+        return this.db.write();
     }
 }
 
 export class VRisingPlayerManager extends EventEmitter {
-    constructor({logger}) {
+    constructor(server) {
         super();
+        this.server = server;
         this.logger = logger;
         this.playerMap = new Map();
         this.store = new PlayerStore();
@@ -82,7 +84,9 @@ export class VRisingPlayerManager extends EventEmitter {
                     await this.parseCharacterNameAndSteamId(matches);
                 }
             }
-        ]
+        ];
+
+        this.server.on('server_stopped', () => this.onServerStopped());
     }
 
     async parseLogLine(line) {
@@ -90,8 +94,18 @@ export class VRisingPlayerManager extends EventEmitter {
             const matches = regex.exec(line);
             if (matches && matches.length > 0) {
                 await parse(matches, line);
+                regex.lastIndex = 0;
+                break;
             }
             regex.lastIndex = 0;
+        }
+    }
+
+    async onServerStopped() {
+        const players = this.store.all();
+
+        for (const player of players) {
+            await this.store.savePlayer(player.userIndex, {...player, isConnected: false});
         }
     }
 
@@ -324,31 +338,7 @@ export class VRisingPlayerManager extends EventEmitter {
         return this.store.all().filter(player => player.isConnected);
     }
 
-    async parseAdminList(adminList) {
-        const players = [...this.getAllPlayers()];
-
-        for (const player of players) {
-            const playerIsAdmin = adminList.includes(player.steamID);
-
-            if (player.isAdmin !== playerIsAdmin) {
-                player.isAdmin = playerIsAdmin;
-                await this.store.savePlayer(player.userIndex, player);
-                this.emit('player_updated', player);
-            }
-        }
-    }
-
-    async parseBanList(banList) {
-        const players = this.getAllPlayers();
-
-        for (const player of players) {
-            const playerIsBanned = banList.includes(player.steamID);
-
-            if (player.isBanned !== playerIsBanned) {
-                player.isBanned = playerIsBanned;
-                await this.store.savePlayer(player.userIndex, player);
-                this.emit('player_updated', player);
-            }
-        }
+    isPlayer(steamID) {
+        return this.store.all().some(player => player.steamID === steamID);
     }
 }

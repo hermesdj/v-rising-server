@@ -1,5 +1,4 @@
 import Router from "express-promise-router";
-import {vRisingServer} from "../../v-rising/server.js";
 import dayjs from "dayjs";
 
 const router = new Router();
@@ -18,23 +17,23 @@ function parseLatest({name, metrics, type, help}) {
 }
 
 router.get('/', (req, res) => {
-    res.json({metrics: Array.from(vRisingServer.apiClient.metricsMap.keys())});
+    res.json({metrics: Array.from(req.vRisingServer.apiClient.metricsMap.keys())});
 });
 
 router.get('/byName/:name', (req, res) => {
-    const metric = vRisingServer.apiClient.metricsMap.get(req.params.name);
+    const metric = req.vRisingServer.apiClient.metricsMap.get(req.params.name);
     res.json(metric);
 });
 
 router.get('/byName/:name/latest', (req, res) => {
-    const metric = vRisingServer.apiClient.metricsMap.get(req.params.name);
+    const metric = req.vRisingServer.apiClient.metricsMap.get(req.params.name);
     res.json(parseLatest(metric));
 });
 
 router.get('/latest', (req, res) => {
     const result = [];
 
-    for (const [, value] of vRisingServer.apiClient.metricsMap) {
+    for (const [, value] of req.vRisingServer.apiClient.metricsMap) {
         result.push(parseLatest(value))
     }
 
@@ -51,7 +50,7 @@ router.get('/byNames', (req, res) => {
         const metrics = [];
 
         for (const name of names) {
-            const data = vRisingServer.apiClient.metricsMap.get(req.params.name)
+            const data = req.vRisingServer.apiClient.metricsMap.get(req.params.name)
             metrics.push({...data, metrics: data.metrics.filter(metric => metric.time > filterTime)});
         }
 

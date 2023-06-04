@@ -1,107 +1,108 @@
-import {REST} from '@discordjs/rest';
-import {WebSocketManager} from '@discordjs/ws';
-import {
-    Client,
-    GatewayIntentBits,
-    GatewayDispatchEvents,
-    API,
-    ApplicationCommandsAPI,
-    InteractionType,
-    MessageFlags
-} from '@discordjs/core';
-import {Collection} from '@discordjs/collection';
+import {Routes, Events, Client, GatewayIntentBits, Collection, REST} from 'discord.js';
 import path from "path";
 import url from "url";
 import * as fs from "fs";
 import {logger} from "../logger.js";
-import {loadServerConfig} from "../config.js";
-
-const config = loadServerConfig();
+import {EventEmitter} from "events";
+import lodash from "lodash";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-const token = config.discord.token;
-
-const rest = new REST({version: '10'}).setToken(token);
-
-const gateway = new WebSocketManager({
-    token,
-    intents: GatewayIntentBits.MessageContent,
-    rest
-});
-
-const api = new API(rest);
-
-const commandApi = new ApplicationCommandsAPI(rest);
-
-const commands = new Collection();
-
-const client = new Client({rest, gateway});
-
-client.on(GatewayDispatchEvents.Ready, () => logger.info('Discord BOT is ready !'));
-
-client.on(GatewayDispatchEvents.InteractionCreate, async ({data: interaction, api}) => {
-    if (interaction.channel_id !== config.discord.channelId) return;
-
-    if (interaction.type !== InteractionType.ApplicationCommand) {
-        logger.debug('%s is not an application command !', interaction.data.name);
-        return;
+export class VRisingDiscordBot extends EventEmitter {
+    constructor(config) {
+        super();
+        this.updateConfig(config);
+        this.server = null;
+        this.commands = new Collection();
     }
 
-    const command = commands.get(interaction.data.name);
-
-    if (!command) {
-        logger.error(`No command matching ${interaction.data.name} was found.`);
-        return;
+    updateConfig(config) {
+        this.config = config;
+        this.config.discord.channelIds = lodash.uniq(config.discord.channelIds.concat([this.channelId]));
     }
 
-    try {
-        await command.execute(interaction, api, config);
-    } catch (err) {
-        logger.error(err);
-        if (interaction.replied || interaction.deferred) {
-            await api.interactions.followUp(interaction.id, interaction.token, {
-                content: 'There was an error executing this command!',
-                flags: MessageFlags.Ephemeral
-            });
-        } else {
-            await api.interactions.reply(interaction.id, interaction.token, {
-                content: 'There was an error executing this command!',
-                flags: MessageFlags.Ephemeral
-            });
+    async setup(server) {
+        this.server = server;
+
+        this.token = this.config.discord.token;
+
+        this.rest = new REST().setToken(this.token);
+
+        await this.initBotCommands();
+
+        this.client = new Client({
+            intents: [GatewayIntentBits.MessageContent]
+        });
+        this.client.on(Events.InteractionCreate, this.onInteractionCreate);
+        this.client.once(Events.ClientReady, () => logger.info('Discord BOT is Ready !'));
+
+        await this.client.login(this.token);
+        logger.info('Discord client connected !');
+    }
+
+    async initBotCommands() {
+        const commandsPath = path.join(__dirname, 'commands');
+        const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+        for (const file of commandFiles) {
+            const filePath = path.join(commandsPath, file);
+            logger.debug('importing command %s', file);
+            const command = await import(`file://${filePath}`);
+
+            if ('data' in command && 'execute' in command) {
+                this.commands.set(command.data.name, command);
+            } else {
+                logger.warn(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+            }
+        }
+
+        const result = await this.rest.put(
+            Routes.applicationCommands(this.config.discord.appId),
+            {
+                body: this.commands.map(command => command.data)
+            }
+        );
+
+        logger.info('initialised %d bot commands', result.length);
+    }
+
+    async onInteractionCreate(interaction) {
+        console.log(interaction);
+        if (!this.config.discord.channelIds.includes(interaction.channelId)) return;
+
+        if (!interaction.isChatInputCommand()) {
+            logger.debug('%s is not an application command !', interaction.commandName);
+            return;
+        }
+
+        if (!this.commands.has(interaction.commandName)) {
+            logger.error(`No command matching ${interaction.commandName} was found.`);
+            return;
+        }
+
+        const command = this.commands.get(interaction.commandName);
+
+        try {
+            await command.execute(interaction, this.config, this.server);
+        } catch (err) {
+            logger.error(err, 'Discord Interaction error');
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({
+                    content: 'There was an error executing this command!',
+                    ephemeral: true
+                });
+            } else {
+                await interaction.reply({
+                    content: 'There was an error executing this command!',
+                    ephemeral: true
+                });
+            }
         }
     }
-});
 
-export const sendDiscordMessage = async (message) => {
-    logger.debug('Sending discord message: "%s"', message);
-    return api.channels.createMessage(
-        config.discord.channelId,
-        {
-            content: message
-        }
-    );
-};
-
-export const initBotCommands = async () => {
-    const commandsPath = path.join(__dirname, 'commands');
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
-    for (const file of commandFiles) {
-        const filePath = path.join(commandsPath, file);
-        logger.debug('importing command %s', file);
-        const command = await import(`file://${filePath}`);
-
-        if ('data' in command && 'execute' in command) {
-            commands.set(command.data.name, command);
-        } else {
-            logger.warn(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-        }
+    async sendDiscordMessage(message) {
+        logger.debug('Sending discord message: "%s"', message);
+        const channel = this.client.channels.cache.get(this.channelId);
+        return channel.send(message);
     }
-
-    const result = await commandApi.bulkOverwriteGlobalCommands(config.discord.appId, commands.map(command => command.data));
-
-    logger.info('initialised %d bot commands', result.length);
 }
-
-gateway.connect().then(() => logger.info('Discord gateway connected !'));

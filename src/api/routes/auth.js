@@ -1,7 +1,6 @@
 import Router from "express-promise-router";
 import passport from "passport";
 import {logger} from "../../logger.js";
-import {io} from "../io.js";
 
 const router = Router();
 
@@ -25,9 +24,9 @@ router.get(
 router.post('/logout', (req, res) => {
     logger.info('Logout %s', req.session.id);
     const socketId = req.session.socketId;
-    if (socketId && io.of('/').sockets.get(socketId)) {
+    if (socketId && req.io.of('/').sockets.get(socketId)) {
         logger.debug('Forcefully closing socket %s', socketId);
-        io.of('/').sockets.get(socketId).disconnect(true);
+        req.io.of('/').sockets.get(socketId).disconnect(true);
     }
     req.logout((err) => {
         if (err) {
@@ -35,7 +34,7 @@ router.post('/logout', (req, res) => {
             res.json({success: false});
         } else {
             res.cookie('connect.sid', {expires: new Date()});
-            io.in(req.session.id).disconnectSockets();
+            req.io.in(req.session.id).disconnectSockets();
             res.json({success: true});
         }
     });
