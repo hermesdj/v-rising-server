@@ -6,6 +6,7 @@ data
 config
 tests
 node_modules
+bin/win32
 build.bat
 deploy.bat
 .gitignore

@@ -4,7 +4,7 @@ import lodash from "lodash";
 import fs from "fs";
 import {mkdirp} from "mkdirp";
 import {createGunzip, createGzip} from "node:zlib";
-import {pipeline} from "node:stream";
+import {pipeline} from "node:stream/promises";
 import {EventEmitter} from "events";
 import {waitForFile} from "../utils.js";
 import dayjs from "dayjs";

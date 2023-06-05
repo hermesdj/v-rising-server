@@ -7,7 +7,7 @@ const router = Router();
 
 router.post('/start', ensureAdmin, async (req, res) => {
     if (req.vRisingServer.serverInfo.serverSetupComplete) return res.json(req.vRisingServer.serverInfo);
-    res.json(await req.vRisingServer.startServer(req.config, true));
+    res.json(await req.vRisingServer.startServer());
 });
 
 router.get('/info', async (req, res) => {
@@ -19,28 +19,29 @@ router.post('/force-stop', ensureAdmin, async (req, res) => {
     res.json(await req.vRisingServer.stopServer(true));
 });
 
-router.post('/scheduled-stop', ensureAdmin, async (req, res) => {
-    const {delay} = req.body;
-    logger.info('Received scheduled stop with delay %d minutes', delay);
-
-    const serverInfo = await req.vRisingServer.scheduleStop(delay, req.user);
-
-    res.json(serverInfo);
+router.get('/operations/status/:name', ensureAdmin, async (req, res) => {
+    const operationInfo = req.vRisingServer.operationManager.getState(req.params.name);
+    res.json(operationInfo);
 });
 
-router.post('/scheduled-restart', ensureAdmin, async (req, res) => {
-    const {delay} = req.body;
-    logger.info('Received scheduled restart with delay %d minutes', delay);
+router.post('/operations/start/:name', ensureAdmin, async (req, res) => {
+    logger.info('Received start operation with name %s', req.params.name);
 
-    const serverInfo = await req.vRisingServer.scheduleRestart(delay, req.user);
+    const operationInfo = await req.vRisingServer.operationManager.startOperation(req.params.name, req.user, req.body);
 
-    res.json(serverInfo);
+    res.json(operationInfo);
 });
 
-router.post('/stop-scheduled-operation', ensureAdmin, async (req, res) => {
-    logger.info('Stopping current scheduled operation');
-    const serverInfo = await req.vRisingServer.stopScheduledOperation(req.user);
-    res.json(serverInfo);
+router.post('/operations/current/stop', ensureAdmin, async (req, res) => {
+    logger.info('Stopping current operation');
+    const operationInfo = await req.vRisingServer.operationManager.stopCurrentOperation(req.user);
+    res.json(operationInfo);
+});
+
+router.post('/operations/stop/:name', ensureAdmin, async (req, res) => {
+    logger.info('Stopping operation with name', req.params.name);
+    const operationInfo = await req.vRisingServer.operationManager.stopOperation(req.params.name, req.user);
+    res.json(operationInfo);
 });
 
 router.post('/send-announce', ensureAdmin, async (req, res) => {

@@ -86,6 +86,7 @@ export class VRisingPlayerManager extends EventEmitter {
             }
         ];
 
+        this.server.on('server_started', () => this.onServerStarted());
         this.server.on('server_stopped', () => this.onServerStopped());
     }
 
@@ -98,6 +99,14 @@ export class VRisingPlayerManager extends EventEmitter {
                 break;
             }
             regex.lastIndex = 0;
+        }
+    }
+
+    async onServerStarted() {
+        const players = this.store.all();
+
+        for (const player of players) {
+            await this.store.savePlayer(player.userIndex, {...player, isConnected: false});
         }
     }
 

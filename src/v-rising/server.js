@@ -1,19 +1,21 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
-import {EventEmitter, once} from 'events';
+import {EventEmitter} from 'events';
 import {logger} from "../logger.js";
-import {VRisingPlayerManager} from "./managers/player-manager.js";
-import lodash from "lodash";
-import {VRisingRConClient} from "./managers/rcon-client.js";
-import {VRisingProcess} from "./managers/process-manager.js";
 import {sleep} from "./utils.js";
-import {VRisingSettingsManager} from "./managers/settings-manager.js";
-import {VRisingUserManager} from "./managers/user-manager.js";
-import {VRisingSaveManager} from "./managers/save-manager.js";
+import {
+    LogWatcher,
+    VRisingPlayerManager,
+    VRisingProcess,
+    VRisingRConClient,
+    VRisingSaveManager,
+    VRisingSettingsManager,
+    VRisingUserManager
+} from "./managers/index.js";
 import {VRisingServerApiClient} from "./metrics/api.js";
-import {LogWatcher} from "./managers/log-watcher.js";
 import {VRisingSteamQuery} from "./steam/query.js";
 import {VRisingOperationManager} from "./operations/operation-manager.js";
+import {VRisingModManager} from "./mods/mod-manager.js";
 
 dayjs.extend(utc);
 
@@ -30,6 +32,7 @@ export class VRisingServer extends EventEmitter {
             saveName: config.server.saveName,
             time: null,
             version: null,
+            versionDate: null,
             steamID: null,
             appID: null,
             connectedToSteam: false,
@@ -100,6 +103,7 @@ export class VRisingServer extends EventEmitter {
         this.userManager = new VRisingUserManager(this);
         this.logWatcher = new LogWatcher(this);
         this.operationManager = new VRisingOperationManager(this);
+        this.modManager = new VRisingModManager(this, config);
 
         this.autoSaveManager.on('parsed_start_date', (startDate) => this._updateServerInfo({
             currentSaveStartDate: startDate
@@ -139,10 +143,11 @@ export class VRisingServer extends EventEmitter {
 
         this.regexpArray = [
             {
-                regex: /Bootstrap - Time: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}), Version: (.*)/g,
-                parse: ([, timeStr, version]) => {
+                regex: /Bootstrap - Time: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}), Version: VRisingServer v([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\s\((\d{4}-\d{2}-\d{2}\s[0-9]{2}:[0-9]{2}\s[a-zA-Z]+)\)/g,
+                parse: ([, timeStr, version, versionDate]) => {
                     this._updateServerInfo({
                         version,
+                        versionDate: dayjs(versionDate, 'YYYY-MM-DD HH:mm ZZZ').toDate(),
                         time: dayjs.utc(timeStr, 'YYYY-MM-DD HH:mm:ss').toDate()
                     });
                 }
@@ -440,11 +445,14 @@ export class VRisingServer extends EventEmitter {
         return this.processManager.isStarted;
     }
 
-    async startServer(config = null, sendMessage = false) {
-        if (config) {
-            this.setConfig(config);
-        }
+    async initServer(config) {
+        this.setConfig(config);
+        await this.userManager.initUserManager(config.server.defaultAdminList, config.server.defaultBanList);
+        await this.settingsManager.setupServerSettings();
+        await this.operationManager.loadOperations();
+    }
 
+    async startServer() {
         await this.processManager.startProcess();
         await this.logWatcher.startWatching();
 
@@ -452,35 +460,20 @@ export class VRisingServer extends EventEmitter {
             serverInfo: this.serverInfo
         });
 
-        await once(this, 'ready');
-
-        if (sendMessage) {
-            const message = this.messageMap.get('start').notifyDone(this);
-            await this.discordBot.sendDiscordMessage(message);
-        }
-
         return this.serverInfo;
     }
 
-    async stopServer(sendMessage = false) {
+    async stopServer() {
         await this.processManager.stopProcess();
-
         this.clearServerInfo();
-
         this.settingsManager.onServerStopped();
         this.userManager.onServerStopped();
-
 
         this.emit('server_stopped', {
             serverInfo: this.getServerInfo(),
             ...this.settingsManager.getSettings(),
             ...this.userManager.getState()
         });
-
-        if (sendMessage) {
-            const message = this.messageMap.get('force-stop').notifyDone(this);
-            await this.discordBot.sendDiscordMessage(message);
-        }
 
         return this.serverInfo;
     }
@@ -508,12 +501,5 @@ export class VRisingServer extends EventEmitter {
             }
             regex.lastIndex = 0;
         }
-    }
-
-    async initServer(config) {
-        this.setConfig(config);
-        await this.userManager.initUserManager(config.server.defaultAdminList, config.server.defaultBanList);
-        await this.settingsManager.setupServerSettings();
-        await this.operationManager.loadOperations();
     }
 }

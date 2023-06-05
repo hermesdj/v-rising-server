@@ -7,11 +7,14 @@ import cors from 'cors';
 import path from "path";
 import {fileURLToPath} from "url";
 import {logger} from "../logger.js";
+import {i18n} from "../i18n.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default (config, vRisingServer, io, sessionMiddleware) => {
     const app = express();
+
+    app.use(i18n.init);
 
     app.use((req, res, next) => {
         req.vRisingServer = vRisingServer;

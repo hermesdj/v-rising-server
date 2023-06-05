@@ -1,5 +1,7 @@
-import {AbstractServerOperation} from "./abstract-operation.js";
+import AbstractServerOperation from "./abstract-operation.js";
 
-export class DeployNewSave extends AbstractServerOperation {
-
+export default class DeployNewSave extends AbstractServerOperation {
+    constructor(server){
+        super(server);
+    }
 }

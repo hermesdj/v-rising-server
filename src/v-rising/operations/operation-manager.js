@@ -3,6 +3,7 @@ import path from "path";
 import url from "url";
 import {logger} from "../../logger.js";
 import fs from "fs";
+import {DbManager} from "../../db-manager.js";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
@@ -12,38 +13,40 @@ export class VRisingOperationManager extends EventEmitter {
         this.server = server;
         this.operations = new Map();
         this.currentOperation = null;
+        this.store = DbManager.createDb('operations-db', 'operations');
     }
 
-    async startOperation(name, params) {
+    async startOperation(name, user, params) {
         if (!this.operations.has(name)) {
             logger.warn('Tried to start the operation %s but it is not defined !', name);
             return false;
         }
 
         if (this.currentOperation) {
-            logger.warn('Tried to start operation %s but operation %s is already in progress !');
+            logger.warn('Tried to start operation %s but operation %s is already in progress !', this.currentOperation);
+            return false;
         }
 
         const operation = this.operations.get(name);
 
-        return operation.start(this.server, params)
-            .then(({success, background}) => {
-                if (background === true) {
+        return operation.start(user, params)
+            .then((operationInfo) => {
+                if (operationInfo.background === true) {
                     logger.debug('Operation is set to run in the background');
                 } else {
                     this.currentOperation = name;
-                    operation.once('finished', () => this.currentOperation = null);
+                    operation.once('operation_finished', () => this.currentOperation = null);
                 }
-                return success;
+                return operationInfo;
             });
     }
 
-    async stopCurrentOperation() {
+    async stopCurrentOperation(user) {
         if (!this.currentOperation) return false;
-        return this.stopOperation(this.currentOperation);
+        return this.stopOperation(this.currentOperation, user);
     }
 
-    async stopOperation(name) {
+    async stopOperation(name, user) {
         if (!this.operations.has(name)) {
             logger.warn('Tried to stop the operation %s but it is not defined !', name);
             return false;
@@ -51,7 +54,15 @@ export class VRisingOperationManager extends EventEmitter {
 
         const operation = this.operations.get(name);
 
-        return operation.stop(this.server);
+        return operation.stop(user);
+    }
+
+    getState(name) {
+        if (!this.operations.has(name)) {
+            throw new Error(`No operation with name ${name}`)
+        }
+
+        return this.operations.get(name).getState();
     }
 
     async loadOperations() {
@@ -62,7 +73,9 @@ export class VRisingOperationManager extends EventEmitter {
             const filePath = path.join(operationsPath, file);
             const name = path.basename(file, path.extname(file));
             logger.debug('importing operation %s', name);
-            const operation = await import(`file://${filePath}`);
+            const OperationClass = await import(`file://${filePath}`);
+
+            const operation = new OperationClass.default();
 
             if ('start' in operation && 'stop' in operation) {
                 this.operations.set(name, operation);

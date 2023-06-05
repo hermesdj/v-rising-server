@@ -5,5 +5,7 @@ server-data/
 .idea
 public/*
 data/*.json
+data/*.tmp
 k8s/api-secrets.yaml
 server-bin/
+bin/win32/steamcmd

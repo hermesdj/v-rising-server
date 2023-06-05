@@ -7,6 +7,7 @@ import users from "./users.js";
 import autosave from "./autosave.js";
 import metrics from "./metrics.js";
 import logs from "./logs.js";
+import mods from "./mods.js";
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/users', users);
 router.use('/autosave', autosave);
 router.use('/metrics', metrics);
 router.use('/logs', logs);
+router.use('/mods', mods);
 
 export default router;

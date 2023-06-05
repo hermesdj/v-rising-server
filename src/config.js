@@ -1,6 +1,6 @@
 import path from "path";
 import url from "url";
-import yaml from "js-yaml";
+import yaml from "yaml";
 import fs from "fs";
 import env from "env-var";
 import lodash from "lodash";
@@ -16,9 +16,12 @@ export const loadServerConfig = () => {
 
     const configExists = fs.existsSync(configPath);
 
-    const loadedYaml = configExists ? yaml.load(fs.readFileSync(configPath, 'utf8')) : {};
+    const loadedYaml = configExists ? yaml.parse(fs.readFileSync(configPath, 'utf8')) : {};
 
     const envConfig = {
+        i18n: {
+            defaultLocale: env.get('I18N_DEFAULT_LOCALE').asString(),
+        },
         api: {
             port: env.get('API_PORT').default(8080).asPortNumber(),
             auth: {
@@ -62,6 +65,14 @@ export const loadServerConfig = () => {
                 metrics: {
                     retain: env.get('V_RISING_API_METRICS_RETAIN_HOURS').default(1).asIntPositive()
                 }
+            },
+            mods: {
+                thunderstore: {
+                    url: env.get('V_RISING_MODS_THUNDERSTORE_URL').default('https://v-rising.thunderstore.io/api/v1').asUrlString()
+                },
+                bepinex: {
+                    url: env.get('V_RISING_MODS_BEPINEX_URL').default('https://github.com/decaprime/VRising-Modding/releases/download/1.668.2/BepInEx_V_Rising_Experimental_Dev_1.668.2.zip').asUrlString()
+                }
             }
         },
         log: {
@@ -76,7 +87,7 @@ export const loadServerConfig = () => {
             appId: env.get('DISCORD_APP_ID').asString(),
             publicKey: env.get('DISCORD_PUBLIC_KEY').asString(),
             channelId: env.get('DISCORD_VRISING_CHANNEL_ID').asString(),
-            channelIds: env.get('DISCORD_VRISING_CHANNEL_IDS').default([]).asArray(),
+            channelIds: env.get('DISCORD_VRISING_CHANNEL_IDS').default('').asArray(),
             roleId: env.get('DISCORD_ROLE_ID').asString()
         },
         rcon: {

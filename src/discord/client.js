@@ -5,20 +5,23 @@ import * as fs from "fs";
 import {logger} from "../logger.js";
 import {EventEmitter} from "events";
 import lodash from "lodash";
+import {i18n} from "../i18n.js";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 export class VRisingDiscordBot extends EventEmitter {
     constructor(config) {
         super();
-        this.updateConfig(config);
         this.server = null;
         this.commands = new Collection();
+        this.channelIds = [];
+        this.updateConfig(config);
     }
 
     updateConfig(config) {
         this.config = config;
-        this.config.discord.channelIds = lodash.uniq(config.discord.channelIds.concat([this.channelId]));
+        this.channelIds = lodash.uniq(config.discord.channelIds.concat([config.discord.channelId]));
+        logger.debug('Initialized discord bot on channels %j', this.channelIds);
     }
 
     async setup(server) {
@@ -33,8 +36,11 @@ export class VRisingDiscordBot extends EventEmitter {
         this.client = new Client({
             intents: [GatewayIntentBits.MessageContent]
         });
-        this.client.on(Events.InteractionCreate, this.onInteractionCreate);
-        this.client.once(Events.ClientReady, () => logger.info('Discord BOT is Ready !'));
+        this.client.on(Events.InteractionCreate, (interaction) => this.onInteractionCreate(interaction));
+        this.client.once(Events.ClientReady, () => {
+            logger.info('Discord BOT is Ready !');
+            this.populateClientCache();
+        });
 
         await this.client.login(this.token);
         logger.info('Discord client connected !');
@@ -67,23 +73,38 @@ export class VRisingDiscordBot extends EventEmitter {
     }
 
     async onInteractionCreate(interaction) {
-        console.log(interaction);
-        if (!this.config.discord.channelIds.includes(interaction.channelId)) return;
+        if (!this.channelIds.includes(interaction.channelId)) return;
+
+        const {commandName} = interaction;
 
         if (!interaction.isChatInputCommand()) {
-            logger.debug('%s is not an application command !', interaction.commandName);
+            logger.debug('%s is not an application command !', commandName);
             return;
         }
 
-        if (!this.commands.has(interaction.commandName)) {
-            logger.error(`No command matching ${interaction.commandName} was found.`);
+        if (!this.commands.has(commandName)) {
+            logger.error(`No command matching ${commandName} was found.`);
             return;
         }
 
-        const command = this.commands.get(interaction.commandName);
+        logger.debug('Executing discord bot command %s', commandName);
+
+        const command = this.commands.get(commandName);
+
+        const context = {
+            config: this.config,
+            server: this.server,
+            headers: {
+                'accept-language': interaction.locale
+            }
+        };
+
+        logger.debug('Init discord execute context with locale %s', interaction.locale);
+        i18n.init(context);
 
         try {
-            await command.execute(interaction, this.config, this.server);
+            logger.info('Executing command %s', commandName);
+            await command.execute(interaction, context);
         } catch (err) {
             logger.error(err, 'Discord Interaction error');
             if (interaction.replied || interaction.deferred) {
@@ -104,5 +125,13 @@ export class VRisingDiscordBot extends EventEmitter {
         logger.debug('Sending discord message: "%s"', message);
         const channel = this.client.channels.cache.get(this.channelId);
         return channel.send(message);
+    }
+
+    async populateClientCache() {
+        for (const guild of this.client.guilds.cache.values()) {
+            await guild.fetch();
+            await guild.roles.fetch();
+            logger.debug('Populated discord bot cache for %s', guild.name);
+        }
     }
 }

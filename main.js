@@ -23,7 +23,9 @@ import {DbManager} from "./src/db-manager.js";
     await vRisingServer.initServer(config);
 
     if (config.server.runOnStartup) {
-        await vRisingServer.startServer(config);
+        vRisingServer.startServer()
+            .then(() => logger.info('VRising Server autostart successfull !'))
+            .catch(() => logger.error('Error starting V Rising Server !'));
     }
 
     async function stopServer() {
