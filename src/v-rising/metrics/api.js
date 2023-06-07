@@ -118,7 +118,6 @@ export class VRisingServerApiClient extends EventEmitter {
                 }
             } catch (err) {
                 logger.error('Error retrieving metrics : %s', err.message);
-                console.error(err);
             }
 
             logger.debug('Waiting %d seconds before polling metrics again', this.apiConfig.PrometheusDelay);

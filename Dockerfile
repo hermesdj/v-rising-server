@@ -60,6 +60,9 @@ COPY public public/
 RUN mkdir data
 RUN mkdir logs
 
+RUN mkdir -p /root/.steam/root
+RUN mkdir -p /root/.steam/steam
+
 EXPOSE 8080
 
 RUN chmod +x ./bin/start.sh

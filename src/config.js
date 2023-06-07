@@ -11,6 +11,10 @@ const configPath = path.resolve(__dirname, '..', 'data', 'config.yaml');
 
 let config = null;
 
+export function updateConfig(config){
+    fs.writeFileSync(configPath, yaml.stringify(config));
+}
+
 export const loadServerConfig = () => {
     if (config) return config;
 
@@ -116,7 +120,7 @@ export const loadServerConfig = () => {
 
     config = lodash.merge(envConfig, loadedYaml);
 
-    fs.writeFileSync(configPath, yaml.stringify(config));
+    updateConfig(config);
 
     return config;
 };
