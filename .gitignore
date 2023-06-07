@@ -4,6 +4,8 @@ logs/
 server-data/
 .idea
 public/*
+data/*.yaml
+data/download
 data/*.json
 data/*.tmp
 k8s/api-secrets.yaml
