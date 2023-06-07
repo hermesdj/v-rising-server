@@ -19,31 +19,6 @@ router.post('/force-stop', ensureAdmin, async (req, res) => {
     res.json(await req.vRisingServer.stopServer(true));
 });
 
-router.get('/operations/status/:name', ensureAdmin, async (req, res) => {
-    const operationInfo = req.vRisingServer.operationManager.getState(req.params.name);
-    res.json(operationInfo);
-});
-
-router.post('/operations/start/:name', ensureAdmin, async (req, res) => {
-    logger.info('Received start operation with name %s', req.params.name);
-
-    const operationInfo = await req.vRisingServer.operationManager.startOperation(req.params.name, req.user, req.body);
-
-    res.json(operationInfo);
-});
-
-router.post('/operations/current/stop', ensureAdmin, async (req, res) => {
-    logger.info('Stopping current operation');
-    const operationInfo = await req.vRisingServer.operationManager.stopCurrentOperation(req.user);
-    res.json(operationInfo);
-});
-
-router.post('/operations/stop/:name', ensureAdmin, async (req, res) => {
-    logger.info('Stopping operation with name', req.params.name);
-    const operationInfo = await req.vRisingServer.operationManager.stopOperation(req.params.name, req.user);
-    res.json(operationInfo);
-});
-
 router.post('/send-announce', ensureAdmin, async (req, res) => {
     if (!req.vRisingServer.rConClient.isEnabled()) {
         res.status(404).json({success: false, message: 'RCon is not enabled !'});
@@ -60,6 +35,17 @@ router.post('/send-announce', ensureAdmin, async (req, res) => {
                 res.status(400).json({success: false, message: err.message});
             }
         }
+    }
+});
+
+router.post('/rcon/command', ensureAdmin, async (req, res) => {
+    const {command} = req.body;
+    logger.info('Sending rcon command to server: %s', command);
+    try {
+        const response = await req.vRisingServer.rConClient._sendCommand(command);
+        res.json({response});
+    } catch (err) {
+        res.json({error: err.message});
     }
 });
 

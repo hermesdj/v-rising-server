@@ -20,11 +20,6 @@ export class VRisingSaveManager extends EventEmitter {
         this.saveVersion = 'v2';
 
         this.startDateFileName = 'StartDate.json';
-
-        this.compressBackupSaves = true;
-        this.backupCount = 5;
-        this.saveName = config.server.saveName;
-
         this.updateConfig(config);
 
         this.settingsManager.on('applied_host_settings', (hostSettings) => this.updateFromHostSettings(hostSettings));
@@ -61,7 +56,7 @@ export class VRisingSaveManager extends EventEmitter {
         this.backupPath = config.server.backupPath;
         this.dataPath = config.server.dataPath;
 
-        logger.debug('Updated autosave config with compressBackupSaves %s, backupCount %d', this.compressBackupSaves, this.backupCount);
+        logger.debug('Updated autosave config with compressBackupSaves %s, backupCount %d, dataPath %s, backupPath %s', this.compressBackupSaves, this.backupCount, this.dataPath, this.backupPath);
     }
 
     _backupDir() {

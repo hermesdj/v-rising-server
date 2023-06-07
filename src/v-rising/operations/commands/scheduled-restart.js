@@ -1,9 +1,9 @@
 import AbstractServerOperation from "./abstract-operation.js";
 
 export default class ScheduledRestart extends AbstractServerOperation {
-    constructor(server) {
-        super(server);
-        this.updateOperationInfo({
+    constructor(name, server, manager) {
+        super(name, server, manager);
+        this.initOperationInfo({
             type: 'restart',
             isRestart: true
         });

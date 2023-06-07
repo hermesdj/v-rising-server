@@ -7,7 +7,7 @@ import lodash from "lodash";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-const configPath = path.resolve(__dirname, '..', 'config', 'config.yaml');
+const configPath = path.resolve(__dirname, '..', 'data', 'config.yaml');
 
 let config = null;
 
@@ -20,7 +20,7 @@ export const loadServerConfig = () => {
 
     const envConfig = {
         i18n: {
-            defaultLocale: env.get('I18N_DEFAULT_LOCALE').asString(),
+            defaultLocale: env.get('I18N_DEFAULT_LOCALE').default('fr').asString(),
         },
         api: {
             port: env.get('API_PORT').default(8080).asPortNumber(),
@@ -30,7 +30,7 @@ export const loadServerConfig = () => {
                 steamApiKey: env.get('API_AUTH_STEAM_API_KEY').required(true).asString(),
             },
             session: {
-                secret: env.get('API_SESSION_SECRET').asString(),
+                secret: env.get('API_SESSION_SECRET').required(true).asString(),
                 params: {
                     resave: env.get('API_SESSION_PARAMS_RESAVE').default('false').asBoolStrict(),
                     saveUninitialized: env.get('API_SESSION_PARAMS_SAVE_UNINITIALIZED').default('false').asBoolStrict(),
@@ -39,18 +39,18 @@ export const loadServerConfig = () => {
             }
         },
         server: {
-            name: env.get('V_RISING_SERVER_NAME').asString(),
-            saveName: env.get('V_RISING_SAVE_NAME').asString(),
-            password: env.get('V_RISING_PASSWORD').asString(),
-            runOnStartup: env.get('V_RISING_RUN_ON_STARTUP').default('true').asBoolStrict(),
+            name: env.get('V_RISING_SERVER_NAME').default('V Rising Server').asString(),
+            saveName: env.get('V_RISING_SAVE_NAME').default('world1').asString(),
+            password: env.get('V_RISING_PASSWORD').default('').asString(),
+            runOnStartup: env.get('V_RISING_RUN_ON_STARTUP').default('false').asBoolStrict(),
             tz: env.get('V_RISING_TIMEZONE').default('Europe/Paris').asString(),
             exeFileName: env.get('V_RISING_EXE_FILE_NAME').default('VRisingServer.exe').asString(),
-            serverPath: env.get('V_RISING_SERVER_PATH').asString(),
-            dataPath: env.get('V_RISING_DATA_PATH').asString(),
-            backupPath: env.get('V_RISING_BACKUP_PATH').asString(),
+            serverPath: env.get('V_RISING_SERVER_PATH').default('/mnt/vrising/server').asString(),
+            dataPath: env.get('V_RISING_DATA_PATH').default('/mnt/vrising/persistentdata').asString(),
+            backupPath: env.get('V_RISING_BACKUP_PATH').default('/mnt/vrising/backups').asString(),
             compressBackupSaves: env.get('V_RISING_COMPRESS_BACKUPS').default('true').asBoolStrict(),
             backupCount: env.get('V_RISING_BACKUP_COUNT').default(5).asIntPositive(),
-            logFile: env.get('V_RISING_LOG_FILE').asString(),
+            logFile: env.get('V_RISING_LOG_FILE').default('/mnt/vrising/persistentdata/VRisingServer.log').asString(),
             gamePort: env.get('V_RISING_GAME_PORT').default(9876).asPortNumber(),
             queryPort: env.get('V_RISING_QUERY_PORT').default(9877).asPortNumber(),
             defaultAdminList: env.get('V_RISING_DEFAULT_ADMIN_LIST').default('').asArray(),
@@ -71,32 +71,39 @@ export const loadServerConfig = () => {
                     url: env.get('V_RISING_MODS_THUNDERSTORE_URL').default('https://v-rising.thunderstore.io/api/v1').asUrlString()
                 },
                 bepinex: {
-                    url: env.get('V_RISING_MODS_BEPINEX_URL').default('https://github.com/decaprime/VRising-Modding/releases/download/1.668.2/BepInEx_V_Rising_Experimental_Dev_1.668.2.zip').asUrlString()
+                    url: env.get('V_RISING_MODS_BEPINEX_URL').default('https://github.com/decaprime/VRising-Modding/releases/download/1.668.2/BepInEx_V_Rising_Experimental_Dev_1.668.2.zip').asUrlString(),
+                    defaultPlugins: env.get('V_RISING_MODS_BEPINEX_DEFAULT_PLUGINS').default('[]').asJsonArray()
                 }
             }
         },
         log: {
-            level: env.get('LOG_LEVEL').asString()
+            level: env.get('LOG_LEVEL').default('info').asString()
         },
         k8s: {
-            namespace: env.get('V_RISING_NAMESPACE').asString(),
-            containerName: env.get('V_RISING_CONTAINER').asString()
+            namespace: env.get('V_RISING_NAMESPACE').default('v-rising').asString(),
+            containerName: env.get('V_RISING_CONTAINER').default('v-rising-server-api').asString()
         },
         discord: {
-            token: env.get('DISCORD_BOT_TOKEN').asString(),
-            appId: env.get('DISCORD_APP_ID').asString(),
-            publicKey: env.get('DISCORD_PUBLIC_KEY').asString(),
-            channelId: env.get('DISCORD_VRISING_CHANNEL_ID').asString(),
-            channelIds: env.get('DISCORD_VRISING_CHANNEL_IDS').default('').asArray(),
-            roleId: env.get('DISCORD_ROLE_ID').asString()
+            enabled: env.get('DISCORD_ENABLED').default('false').asBoolStrict(),
+            token: env.get('DISCORD_BOT_TOKEN').default('').asString(),
+            appId: env.get('DISCORD_APP_ID').default('').asString(),
+            publicKey: env.get('DISCORD_PUBLIC_KEY').default('').asString(),
+            channelId: env.get('DISCORD_VRISING_CHANNEL_ID').default('').asString(),
+            channelIds: env.get('DISCORD_VRISING_CHANNEL_IDS').default('').default('').asArray(),
+            roleId: env.get('DISCORD_ROLE_ID').default('').asString()
         },
         rcon: {
             enabled: env.get('RCON_ENABLED').default('true').asBoolStrict(),
             host: env.get('RCON_HOST').default('127.0.0.1').asString(),
             port: env.get('RCON_PORT').default(25575).asPortNumber(),
-            password: env.get('RCON_PASSWORD').asString()
+            password: env.get('RCON_PASSWORD').default('').asString()
         },
         steam: {
+            cmd: {
+                exePath: env.get('STEAM_CMD_EXE_PATH').default('/usr/bin/steamcmd').asString(),
+                appId: env.get('STEAM_CMD_APP_ID').default('1829350').asIntPositive(),
+                validate: env.get('STEAM_CMD_VALIDATE').default('true').asBoolStrict(),
+            },
             query: {
                 enabled: env.get('STEAM_QUERY_ENABLED').default('true').asBoolStrict(),
                 pollingDelay: env.get('STEAM_QUERY_POLLING_DELAY').default(30000).asIntPositive(),
@@ -106,7 +113,9 @@ export const loadServerConfig = () => {
         }
     };
 
-    config = lodash.merge(loadedYaml, envConfig);
+    config = lodash.merge(envConfig, loadedYaml);
+
+    fs.writeFileSync(configPath, yaml.stringify(config));
 
     return config;
 };

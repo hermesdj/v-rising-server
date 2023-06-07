@@ -4,6 +4,10 @@ export const ensureAuthenticated = (req, res, next) => {
 }
 
 export const ensureAdmin = (req, res, next) => {
+    // TODO REMOVE !
+    if (process.env.NODE_ENV === 'development') {
+        return next();
+    }
     if (req.isAuthenticated() && req.user.isAdmin) {
         return next();
     }

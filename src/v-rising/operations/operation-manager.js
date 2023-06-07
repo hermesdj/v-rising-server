@@ -29,14 +29,19 @@ export class VRisingOperationManager extends EventEmitter {
 
         const operation = this.operations.get(name);
 
+        logger.info('Operation %s started by %s with params %j', name, user.username, params);
+
         return operation.start(user, params)
             .then((operationInfo) => {
                 if (operationInfo.background === true) {
                     logger.debug('Operation is set to run in the background');
                 } else {
                     this.currentOperation = name;
-                    operation.once('operation_finished', () => this.currentOperation = null);
+                    operation.once('operation_finished', () => {
+                        this.currentOperation = null;
+                    });
                 }
+                this.emit('operation_started', operationInfo);
                 return operationInfo;
             });
     }
@@ -65,6 +70,13 @@ export class VRisingOperationManager extends EventEmitter {
         return this.operations.get(name).getState();
     }
 
+    getCurrentState() {
+        if (!this.currentOperation) {
+            return null;
+        }
+        return this.getState(this.currentOperation);
+    }
+
     async loadOperations() {
         const operationsPath = path.join(__dirname, 'commands');
         const commandFiles = fs.readdirSync(operationsPath).filter(file => file.endsWith('.js') && !file.includes('abstract-operation'));
@@ -75,10 +87,25 @@ export class VRisingOperationManager extends EventEmitter {
             logger.debug('importing operation %s', name);
             const OperationClass = await import(`file://${filePath}`);
 
-            const operation = new OperationClass.default();
+            const operation = new OperationClass.default(name, this.server, this);
 
             if ('start' in operation && 'stop' in operation) {
+                operation.name = name;
                 this.operations.set(name, operation);
+                operation.on('operation_info_updated', operationInfo => this.emit('operation_info_updated', operationInfo));
+                operation.on('operation_scheduled_with_period', operationInfo => this.emit('operation_scheduled_with_period', operationInfo));
+                operation.on('operation_scheduled', operationInfo => {
+                    if (this.currentOperation !== operationInfo.name) {
+                        logger.warn('Stopping operation %s because %s is already running', operationInfo.name, this.currentOperation);
+                        this.operations.get(operationInfo.name).stop();
+                    } else {
+                        this.emit('operation_scheduled', operationInfo)
+                    }
+                });
+                operation.on('operation_success', operationInfo => this.emit('operation_success', operationInfo));
+                operation.on('operation_error', info => this.emit('operation_error', info));
+                operation.on('operation_finished', operationInfo => this.emit('operation_finished', operationInfo));
+                operation.on('operation_progress', operationInfo => this.emit('operation_progress', operationInfo));
             } else {
                 logger.warn(`[WARNING] The operation ${name} is missing the required function "start" or "stop".`)
             }

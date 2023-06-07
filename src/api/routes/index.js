@@ -8,6 +8,7 @@ import autosave from "./autosave.js";
 import metrics from "./metrics.js";
 import logs from "./logs.js";
 import mods from "./mods.js";
+import operations from "./operations.js";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/autosave', autosave);
 router.use('/metrics', metrics);
 router.use('/logs', logs);
 router.use('/mods', mods);
+router.use('/operations', operations);
 
 export default router;

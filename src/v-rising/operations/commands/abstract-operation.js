@@ -6,10 +6,12 @@ import lodash from "lodash";
 import {logger} from "../../../logger.js";
 
 export default class AbstractServerOperation extends EventEmitter {
-    constructor(server) {
+    constructor(name, server, operationManager) {
         super();
         this.server = server;
+        this.operationManager = operationManager;
         this.operationInfo = {
+            name,
             type: 'default',
             background: false,
             isRestart: false,
@@ -19,6 +21,15 @@ export default class AbstractServerOperation extends EventEmitter {
         };
         this.interval = null;
         this.task = null;
+        this.i18n = {};
+        i18n.init(this.i18n);
+    }
+
+    initOperationInfo(info){
+        this.operationInfo = {
+            ...this.operationInfo,
+            ...info
+        }
     }
 
     updateOperationInfo(info) {
@@ -28,7 +39,7 @@ export default class AbstractServerOperation extends EventEmitter {
         }
 
         this.emit('operation_info_updated', this.operationInfo);
-
+        logger.debug('[%s] Operation info : %j', this.operationInfo.name, this.operationInfo);
         return this.operationInfo;
     }
 
@@ -47,7 +58,9 @@ export default class AbstractServerOperation extends EventEmitter {
 
         if (this.operationInfo.background) throw new Error('This is a background operation, it cannot be scheduled non periodically');
         if (this.interval) clearInterval(this.interval);
-        this.interval = setInterval(() => this.executeOperationProgress, this.operationInfo.timeout);
+
+        logger.debug('[%s] Scheduling progress every %d ms', this.operationInfo.name, this.operationInfo.timeout);
+        this.interval = setInterval(() => this.executeOperationProgress(), this.operationInfo.timeout);
 
         this.updateOperationInfo({
             user,
@@ -78,10 +91,22 @@ export default class AbstractServerOperation extends EventEmitter {
         this.task = cron.schedule(cronString, () => this.executePeriodicOperation(), {
             timezone
         });
+
+        this.updateOperationInfo({
+            timezone,
+            cronString,
+            periodicSchedule: true,
+            background: true
+        })
+
+        this.emit('operation_scheduled_with_period', this.operationInfo);
+
+        return this.operationInfo;
     }
 
     async executeOperationProgress() {
         const remainingTime = Math.max(this.operationInfo.remainingTime - 60000, 0);
+        logger.debug('[%s] Operation progress remaining time %d ms', this.operationInfo.name, remainingTime);
 
         this.updateOperationInfo({
             remainingTime
@@ -89,10 +114,12 @@ export default class AbstractServerOperation extends EventEmitter {
 
         if (this.operationInfo.remainingTime <= 0) {
             try {
+                logger.info('[%s] Executing operation !', this.operationInfo.name);
                 await this.executeOperation();
                 this.emit('operation_success', this.operationInfo);
                 await this.notifySuccess();
             } catch (err) {
+                logger.error('[%s] operation execution error : %s', this.operationInfo.name, err.message);
                 this.emit('operation_error', {operationInfo: this.operationInfo, error: err});
                 await this.notifySuccess(err);
                 throw err;
@@ -115,6 +142,7 @@ export default class AbstractServerOperation extends EventEmitter {
         this.clearOperationInfo();
 
         await this.notifyCancelled(user);
+        logger.info('[%s] Operation cancelled by user %s', this.operationInfo.name, user.username);
     }
 
     clearOperationInfo() {
@@ -134,7 +162,7 @@ export default class AbstractServerOperation extends EventEmitter {
     }
 
     _resolveTranslatedMessage(messageType, params) {
-        const message = i18n.$t(`operation.${this.operationInfo.type}.messages.${messageType}`, {
+        const message = this.i18n.$t(`operation.${this.operationInfo.name}.messages.${messageType}`, {
             ...this.operationInfo,
             ...params
         });

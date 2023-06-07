@@ -1,7 +1,7 @@
 import AbstractServerOperation from "./abstract-operation.js";
 
 export default class ScheduledWipe extends AbstractServerOperation {
-    constructor(server) {
-        super(server);
+    constructor(name, server, manager) {
+        super(name, server, manager);
     }
 }

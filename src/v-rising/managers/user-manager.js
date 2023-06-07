@@ -7,8 +7,8 @@ export class VRisingUserManager extends EventEmitter {
         this.server = server;
         this.store = DbManager.createFlatDb('game-users-db');
 
-        this.lastAppliedAdminList = [];
-        this.lastAppliedBanList = [];
+        this.lastAppliedAdminList = null;
+        this.lastAppliedBanList = null;
 
         server.on('server_started', () => this.onServerStarted());
         server.on('server_stopped', () => this.onServerStopped());
@@ -20,8 +20,8 @@ export class VRisingUserManager extends EventEmitter {
     }
 
     onServerStopped() {
-        this.lastAppliedAdminList = [];
-        this.lastAppliedBanList = [];
+        this.lastAppliedAdminList = null;
+        this.lastAppliedBanList = null;
     }
 
     isInitialized() {

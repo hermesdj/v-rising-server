@@ -64,25 +64,16 @@ setUser() {
   fi
 }
 
-# Update the server from steamcmd
-updateSteam() {
-  mkdir -p /root/.steam 2>/dev/null
-  chmod -R 777 /root/.steam 2>/dev/null
-
-  /usr/bin/steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 validate +quit
-}
-
 # Remove the Xvfb lock if it is present
 removeX0Lock() {
   if [ -f /tmp/.X0-lock ]; then
     echo "Removing /tmp/.X0-lock"
-    rm /tmp/.X0-lock
+    rm /tmp/.X0-lock 2>&1
   fi
 }
 
 setTimezone
 setUser
-updateSteam
 
 removeX0Lock
 
@@ -91,14 +82,9 @@ trap onExit INT TERM KILL
 # Start Xvfb before launching the server
 Xvfb :0 -screen 0 1024x768x16 &
 
-# Export the variables so launch_server can retrieve them
-export p
-export s
-export logFile
-export ports
-
+echo "Starting V Rising Dedicated Server"
 # Launch the server as a background process
-./launch_server.sh
+DISPLAY=:0.0 wine64 $s/VRisingServer.exe -persistentDataPath $p -logFile "$logFile" 2>&1
 
 echo $!
 wait $!

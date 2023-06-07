@@ -1,5 +1,4 @@
 import Router from "express-promise-router";
-import {getGameSettings, getHostSettings} from "../../v-rising/managers/settings-manager.js";
 import {ensureAdmin} from "./utils.js";
 
 const router = Router();

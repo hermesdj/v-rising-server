@@ -27,6 +27,14 @@ export class VRisingSettingsManager extends EventEmitter {
             lastApplied: null
         };
 
+        this.settingsSync = [
+            {path: 'hostSettings.Password', configPath: 'password'},
+            {path: 'hostSettings.SaveName', configPath: 'saveName'},
+            {path: 'hostSettings.Name', configPath: 'name'},
+            {path: 'hostSettings.RemoteBansURL', value: `http://localhost:${config.api.port}/api/users/banned`},
+            {path: 'hostSettings.RemoteAdminsURL', value: `http://localhost:${config.api.port}/api/users/admins`}
+        ]
+
         server.on('config_updated', config => this.updateConfig(config));
         server.on('server_started', () => this.onServerStarted());
         server.on('server_stopped', () => this.onServerStopped());
@@ -76,7 +84,9 @@ export class VRisingSettingsManager extends EventEmitter {
     async setupServerSettings() {
         logger.debug('Setup server settings')
         await this.checkServerSettingsDirectory();
-        const {hostSettings, gameSettings} = await this.initializeServerSettings();
+        const settings = await this.initializeServerSettings();
+        const {hostSettings, gameSettings} = await this.checkSettingsSync(settings);
+
 
         this.hostSettings.current = lodash.cloneDeep(hostSettings);
         this.gameSettings.current = lodash.cloneDeep(gameSettings);
@@ -126,6 +136,29 @@ export class VRisingSettingsManager extends EventEmitter {
             logger.debug('Creating settingsPath %s', settingsPath);
             await mkdirp(settingsPath);
         }
+    }
+
+    async checkSettingsSync(settings) {
+        let isModified = false;
+
+        for (const {path, configPath, value} of this.settingsSync) {
+            const configValue = configPath ? lodash.get(this.serverConfig, configPath) : value;
+            const settingsValue = lodash.get(settings, path);
+
+            if (configValue !== settingsValue) {
+                logger.debug('Updating settings %s to be in sync with value %s', path, configValue);
+                lodash.set(settings, path, configValue);
+                isModified = true;
+            }
+        }
+
+        if (isModified) {
+            await this._writeServerSettings(settings.hostSettings, this.config.hostSettingsFileName);
+            await this._writeServerSettings(settings.gameSettings, this.config.gameSettingsFileName);
+            logger.debug('Synced settings in server folder');
+        }
+
+        return settings;
     }
 
     checkSettingsIsInitialized(fileName) {
@@ -212,20 +245,7 @@ export class VRisingSettingsManager extends EventEmitter {
         return this.hostSettings;
     }
 
-    getCurrentHostSettingByKey(key){
+    getCurrentHostSettingByKey(key) {
         return lodash.get(this.hostSettings.current, key);
     }
-}
-
-const hostSettingsPath = (config) => path.join(config.server.dataPath, 'Settings', 'ServerHostSettings.json');
-const gameSettingsPath = (config) => path.join(config.server.dataPath, 'Settings', 'ServerGameSettings.json');
-
-export const getGameSettings = async (config) => {
-    const content = await fs.promises.readFile(gameSettingsPath(config), 'utf8');
-    return JSON.parse(content);
-}
-
-export const getHostSettings = async (config) => {
-    const content = await fs.promises.readFile(hostSettingsPath(config), 'utf8');
-    return JSON.parse(content);
 }

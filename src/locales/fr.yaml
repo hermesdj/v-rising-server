@@ -1,13 +1,20 @@
 discord:
-  commands:
-    assign-role:
-      alreadyAssigned: Tu as déjà le rôle {name} !
-      assigned: Tu as maintenant le rôle {name} !
-    players:
-      connected:
-        one: Il y a actuellement {count} joueur connecté
-        other: Il y a actuellement {count} joueurs connectés
-    server-info:
-      operationInProgress: "Une opération a été planifiée sur {serverName} !"
-      online: "Le serveur {serverName} est en ligne ! Vous pouvez vous connecter avec le SteamID {steamID}"
-      offline: "Le serveur {serverName} est hors ligne !"
+ commands:
+  assign-role:
+   alreadyAssigned: Tu as déjà le rôle {name} !
+   assigned: Tu as maintenant le rôle {name} !
+  players:
+   connected:
+    one: Il y a actuellement {count} joueur connecté
+    other: Il y a actuellement {count} joueurs connectés
+  server-info:
+   operationInProgress: Une opération a été planifiée sur {serverName} !
+   online: Le serveur {serverName} est en ligne ! Vous pouvez vous connecter avec
+    le SteamID {steamID}
+   offline: Le serveur {serverName} est hors ligne !
+operation:
+ scheduled-restart:
+  messages:
+   start: operation.scheduled-restart.messages.start
+   progress: operation.scheduled-restart.messages.progress
+   success: operation.scheduled-restart.messages.success

@@ -27,6 +27,10 @@ export class VRisingDiscordBot extends EventEmitter {
     async setup(server) {
         this.server = server;
 
+        if (!this.config.discord.enabled) {
+            return;
+        }
+
         this.token = this.config.discord.token;
 
         this.rest = new REST().setToken(this.token);
@@ -122,6 +126,7 @@ export class VRisingDiscordBot extends EventEmitter {
     }
 
     async sendDiscordMessage(message) {
+        if (!this.config.discord.enabled) return null;
         logger.debug('Sending discord message: "%s"', message);
         const channel = this.client.channels.cache.get(this.channelId);
         return channel.send(message);

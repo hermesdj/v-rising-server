@@ -46,6 +46,7 @@ export class VRisingRConClient {
                 port: this.config.port,
                 password: this.config.password
             });
+            this.client.on('error', (err) => logger.error('Rcon client error : %s', err.message));
         }
 
         try {
@@ -62,9 +63,10 @@ export class VRisingRConClient {
         try {
             logger.debug('Disconnect rcon client');
             await this.client.end();
-            this.isConnected = false;
         } catch (err) {
             logger.warn('Could not disconnect rcon client: %s', err.message);
+        } finally {
+            this.isConnected = false;
         }
 
         return this.isConnected;
@@ -78,7 +80,7 @@ export class VRisingRConClient {
         return this.isConnected;
     }
 
-    async _sendMessage(message) {
+    async _sendCommand(message) {
         if (!this.client || !this.isConnected) {
             logger.debug('RCon is not active ! connecting...');
             await this.connect();
@@ -90,10 +92,9 @@ export class VRisingRConClient {
 
         try {
             logger.info('Sending message using RCON : %s', message);
-            await this.client.send(message);
-            return true;
+            return await this.client.send(message);
         } catch (err) {
-            logger.error('Error sending message to VRising server !');
+            logger.error('Error sending message to VRising server : %s', err.message);
             throw err;
         } finally {
             this.disconnectTimeout = setTimeout(async () => await this.disconnect(), 5000);
@@ -101,11 +102,11 @@ export class VRisingRConClient {
     }
 
     async sendAnnounceToVRisingServer(message) {
-        return this._sendMessage(`announce ${message}`);
+        return this._sendCommand(`announce ${message}`);
     }
 
     async sendRestartAnnounceToVRisingServer(time) {
-        return this._sendMessage(`announcerestart ${time}`)
+        return this._sendCommand(`announcerestart ${time}`)
     }
 
     isEnabled() {

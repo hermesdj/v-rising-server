@@ -35,7 +35,10 @@ export default (vRisingServer) => {
 
                 socket.on('disconnect', (reason) => {
                     logger.debug('Socket %s is disconnected because : %s', socket.id, reason);
-                })
+                });
+
+                socket.emit('server_info', vRisingServer.getServerInfo());
+                socket.emit('operation_info_updated', vRisingServer.operationManager.getCurrentState());
 
                 logger.debug('saving sid %s in session %s', socket.id, session.id);
                 session.socketId = socket.id;
@@ -47,11 +50,6 @@ export default (vRisingServer) => {
             vRisingServer.on('server_process_closed', (code) => io.emit('server process closed', code));
             vRisingServer.on('server_started', (info) => io.emit('server started', info));
             vRisingServer.on('server_stopped', (info) => io.emit('server stopped', info));
-            vRisingServer.on('operation_start', (serverInfo) => io.emit('operation start', serverInfo));
-            vRisingServer.on('operation_execute', (serverInfo) => io.emit('operation execute', serverInfo));
-            vRisingServer.on('operation_done', (serverInfo) => io.emit('operation done', serverInfo));
-            vRisingServer.on('operation_error', (err) => io.emit('operation error', err));
-            vRisingServer.on('operation_progress', (serverInfo) => io.emit('operation progress', serverInfo));
             vRisingServer.on('loaded_save', (info) => io.emit('loaded save', info));
             vRisingServer.on('auto_save', (info) => io.emit('auto save', info));
 
@@ -70,6 +68,14 @@ export default (vRisingServer) => {
             vRisingServer.playerManager.on('player_connected', (player) => io.emit('player connected', player));
             vRisingServer.playerManager.on('player_disconnected', (player) => io.emit('player disconnected', player));
             vRisingServer.playerManager.on('player_updated', (player) => io.emit('player updated', player));
+
+            vRisingServer.operationManager.on('operation_info_updated', (info) => io.emit('operation info updated', info));
+            vRisingServer.operationManager.on('operation_scheduled', (info) => io.emit('operation scheduled', info));
+            vRisingServer.operationManager.on('operation_scheduled_with_period', (info) => io.emit('operation scheduled with period', info));
+            vRisingServer.operationManager.on('operation_success', (info) => io.emit('operation success', info));
+            vRisingServer.operationManager.on('operation_error', (info) => io.emit('operation error', info));
+            vRisingServer.operationManager.on('operation_finished', (info) => io.emit('operation finished', info));
+            vRisingServer.operationManager.on('operation_progress', (info) => io.emit('operation progress', info));
 
             return io;
         }

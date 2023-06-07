@@ -27,18 +27,4 @@ router.get('/backups/:fileName', ensureAuthenticated, (req, res) => {
     readStream.pipe(res);
 });
 
-router.post('/schedule-restore-backup', ensureAdmin, async (req, res) => {
-    const {backupFileName, delay} = req.body;
-    logger.info('Received scheduled backup restore with delay %d minutes and file name %s', delay, backupFileName);
-
-    const backupDir = await req.vRisingServer.autoSaveManager._backupDir(req.config);
-
-    if (!fs.existsSync(path.join(backupDir, backupFileName))) {
-        res.status(400).json({message: 'The backup file does not exists !'});
-    } else {
-        const serverInfo = await req.vRisingServer.scheduleRestoreBackup(delay, backupFileName, req.user);
-        res.json(serverInfo);
-    }
-})
-
 export default router;
