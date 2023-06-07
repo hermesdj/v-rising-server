@@ -171,9 +171,7 @@ export class VRisingProcess extends EventEmitter {
             '-l', this.logFile
         ];
         logger.info('Starting VRising server on linux platform with args %j', args);
-        this.process = spawn(this._resolveScript('start.sh'), args, {
-            cwd: this.projectCwd()
-        });
+        this.process = spawn(this._resolveScript('start.sh'), args);
     }
 
     _startWinProcess() {
@@ -194,7 +192,7 @@ export class VRisingProcess extends EventEmitter {
     }
 
     cwd() {
-        return path.resolve(__dirname, '..', '..', '..', 'bin', this.platform);
+        return path.resolve(__dirname, '..', '..', '..', 'bin');
     }
 
     projectCwd() {

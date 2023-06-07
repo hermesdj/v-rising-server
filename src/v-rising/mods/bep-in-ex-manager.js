@@ -10,10 +10,11 @@ import {extractFilePathsFromZip, extractFileToDirectory} from "../utils.js";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-export class BepinexManager extends EventEmitter {
+export class BepInExManager extends EventEmitter {
     constructor(config) {
         super();
         this.reloadConfig(config);
+        this.logWatcher = new BepInExLogWatcher();
     }
 
     reloadConfig({url, defaultPlugins}) {
@@ -193,4 +194,8 @@ export class BepinexManager extends EventEmitter {
     get isDownloaded() {
         return fs.existsSync(path.join(this.downloadDir, this.downloadBepinexFileName));
     }
+}
+
+class BepInExLogWatcher {
+
 }

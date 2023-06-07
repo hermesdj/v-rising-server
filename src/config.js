@@ -67,6 +67,7 @@ export const loadServerConfig = () => {
                 }
             },
             mods: {
+                enabled: env.get('V_RISING_MODS_ENABLED').default('true').asBoolStrict(),
                 thunderstore: {
                     url: env.get('V_RISING_MODS_THUNDERSTORE_URL').default('https://v-rising.thunderstore.io/api/v1').asUrlString()
                 },
