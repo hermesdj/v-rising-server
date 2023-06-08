@@ -82,8 +82,8 @@ export class LogWatcher extends EventEmitter {
     async _watchLogLines() {
         for await (const line of this.logLines()) {
             const newLine = line.replace(/\r?\n/g, '\n');
-            await this.server.parseLogLine(newLine);
-            await this.server.playerManager.parseLogLine(newLine);
+            await this.server.logParser.parseLogLine(newLine);
+            await this.server.playerManager.logParser.parseLogLine(newLine);
         }
     }
 

@@ -67,6 +67,7 @@ export const loadServerConfig = () => {
                 accessList: env.get('V_RISING_API_ACCESS_LIST').default('').asString(),
                 prometheusDelay: env.get('V_RISING_API_PROMETHEUS_DELAY').default(30).asIntPositive(),
                 metrics: {
+                    pollingEnabled: env.get('V_RISING_API_METRICS_POLLING_ENABLED').default('false').asBoolStrict(),
                     retain: env.get('V_RISING_API_METRICS_RETAIN_HOURS').default(1).asIntPositive()
                 }
             },
@@ -108,6 +109,7 @@ export const loadServerConfig = () => {
                 exePath: env.get('STEAM_CMD_EXE_PATH').default('/usr/bin/steamcmd').asString(),
                 appId: env.get('STEAM_CMD_APP_ID').default('1829350').asIntPositive(),
                 validate: env.get('STEAM_CMD_VALIDATE').default('true').asBoolStrict(),
+                update: env.get('STEAM_CMD_UPDATE').default('true').asBoolStrict()
             },
             query: {
                 enabled: env.get('STEAM_QUERY_ENABLED').default('true').asBoolStrict(),

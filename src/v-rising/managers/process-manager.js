@@ -226,6 +226,7 @@ class SteamCmdUpdater {
         this.steamCmdExePath = '/usr/bin/steamcmd';
         this.steamAppId = 1829350;
         this.validateSteamApp = true;
+        this.updateSteamApp = true;
 
         this.errorCodes = new Map(Object.entries({
             '0x2': 'Unknown error 2',
@@ -292,9 +293,14 @@ class SteamCmdUpdater {
         this.steamCmdExePath = path.resolve(config.steam.cmd.exePath);
         this.steamAppId = config.steam.cmd.appId;
         this.validateSteamApp = config.steam.cmd.validate;
+        this.updateSteamApp = config.steam.cmd.update;
     }
 
     async runSteamUpdate() {
+        if (!this.updateSteamApp) {
+            logger.warn('SteamCMD is configured to not update the app !');
+            return Promise.resolve();
+        }
         const command = `${this.steamCmdExePath} +@sSteamCmdForcePlatformType windows +force_install_dir ${this.processManager.serverPath} +login anonymous +app_update ${this.steamAppId} ${this.validateSteamApp ? 'validate' : ''} +quit`;
         logger.debug('Executing command %s', command);
         return this._exec(command);

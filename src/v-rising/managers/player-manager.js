@@ -2,6 +2,7 @@ import {EventEmitter} from "events";
 import lodash from 'lodash';
 import {DbManager} from "../../db-manager.js";
 import {logger} from "../../logger.js";
+import {sleep} from "../utils.js";
 
 class PlayerStore {
     constructor() {
@@ -24,6 +25,10 @@ class PlayerStore {
         return this.db.set(userIndex, player);
     }
 
+    tmpSavePlayer(userIndex, player) {
+        return this.db.tmpSet(userIndex, player);
+    }
+
     getPlayer(userIndex) {
         return this.db.get(userIndex);
     }
@@ -31,15 +36,150 @@ class PlayerStore {
     write() {
         return this.db.write();
     }
+
+    exists(userIndex) {
+        return this.db.has(userIndex);
+    }
 }
 
 export class VRisingPlayerManager extends EventEmitter {
-    constructor(server) {
+    constructor(server, apiClient) {
         super();
         this.server = server;
-        this.logger = logger;
-        this.playerMap = new Map();
+        this.apiClient = apiClient;
         this.store = new PlayerStore();
+        this.logParser = new PlayerLogParser(this.store);
+        this.hasHttpService = false;
+
+        this.server.on('server_started', () => this.onServerStarted());
+        this.server.on('http_service_ready', () => this.hasHttpService = true);
+        this.server.on('online', () => this.onServerOnline());
+        this.server.on('server_stopped', () => this.onServerStopped());
+
+        this.logParser.on('player_updated', player => this._updatePlayer('player_updated', player));
+        this.logParser.on('detected_player', player => this._updatePlayer('player_updated', player));
+        this.logParser.on('player_connected', player => this._updatePlayer('player_connected', player));
+        this.logParser.on('player_info', player => this._updatePlayer('player_updated', player));
+        this.logParser.on('player_reconnected', player => this._updatePlayer('player_connected', player));
+        this.logParser.on('player_disconnected', player => this._updatePlayer('player_disconnected', player));
+    }
+
+    async _updatePlayer(event, player) {
+        if (event && player && player.userIndex !== null) {
+            let storedPlayer = this.store.getPlayer(player.userIndex);
+
+            if (!storedPlayer) {
+                const syncedPlayer = await this.updatePlayerFromApi(player.userIndex, player);
+                await this.store.savePlayer(player.userIndex, syncedPlayer);
+            } else if (!lodash.isEqual(player, storedPlayer)) {
+                await this.store.savePlayer(storedPlayer.userIndex, {
+                    ...storedPlayer,
+                    ...player
+                });
+            }
+        }
+    }
+
+    async updatePlayerFromApi(userIndex, playerObj) {
+        try {
+            if (playerObj.isInitializedFromApi === undefined) {
+                playerObj.isInitializedFromApi = false;
+            }
+            logger.debug('Querying the API for player %d details', userIndex);
+            const {player} = await this.apiClient.players.getPlayerDetails(userIndex);
+            if (player) {
+                playerObj = {
+                    ...playerObj,
+                    ...player
+                };
+
+                playerObj.isInitializedFromApi = true;
+            } else {
+                logger.warn('No player %d details found in response', userIndex);
+            }
+
+            return playerObj;
+        } catch (err) {
+            logger.warn('Could not load player from API');
+            return playerObj;
+        }
+    }
+
+    async onServerStarted() {
+        const players = this.store.all();
+
+        for (const player of players) {
+            await this.store.savePlayer(player.userIndex, {...player, isConnected: false});
+        }
+    }
+
+    async onServerStopped() {
+        const players = this.store.all();
+
+        for (const player of players) {
+            this.store.tmpSavePlayer(player.userIndex, {...player, isConnected: false});
+        }
+
+        await this.store.write();
+    }
+
+    async onServerOnline() {
+        if (!this.hasHttpService) return;
+        logger.info('Server is online, waiting a second before initializing players');
+        await sleep(1000);
+
+        try {
+            const {players} = await this.apiClient.players.getAllPlayers();
+            logger.info('Found %d players retrieved from the API', players.length);
+
+            for (let player of players) {
+                if (!this.store.exists(player.userIndex)) {
+                    logger.debug('Player %d does not exists in the store, retrieving it from API', player.userIndex);
+                    player = await this.updatePlayerFromApi(player.userIndex, player);
+                } else {
+                    let localPlayer = this.store.getPlayer(player.userIndex);
+                    player = {
+                        ...localPlayer,
+                        ...player,
+                    };
+                }
+
+                if (!player.isInitializedFromApi) {
+                    logger.debug('Loading player %d info from API', player.userIndex);
+                    player = await this.updatePlayerFromApi(player.userIndex, player);
+                }
+
+                this.store.tmpSavePlayer(player.userIndex, player);
+            }
+
+            await this.store.write();
+        } catch (err) {
+            logger.warn('Could not update players from API : %s', err.message);
+        }
+    }
+
+    getPlayer(userIndex){
+        return this.store.getPlayer(userIndex);
+    }
+
+    getAllPlayers() {
+        return this.store.all().filter(player => player.hasLocalCharacter);
+    }
+
+    getConnectedPlayers() {
+        return this.store.all().filter(player => player.isConnected);
+    }
+
+    isPlayer(steamID) {
+        return this.store.all().some(player => player.steamID === steamID);
+    }
+}
+
+class PlayerLogParser extends EventEmitter {
+    constructor() {
+        super();
+
+        this.playerMap = new Map();
 
         this.regexArray = [
             {
@@ -85,37 +225,6 @@ export class VRisingPlayerManager extends EventEmitter {
                 }
             }
         ];
-
-        this.server.on('server_started', () => this.onServerStarted());
-        this.server.on('server_stopped', () => this.onServerStopped());
-    }
-
-    async parseLogLine(line) {
-        for (const {regex, parse} of this.regexArray) {
-            const matches = regex.exec(line);
-            if (matches && matches.length > 0) {
-                await parse(matches, line);
-                regex.lastIndex = 0;
-                break;
-            }
-            regex.lastIndex = 0;
-        }
-    }
-
-    async onServerStarted() {
-        const players = this.store.all();
-
-        for (const player of players) {
-            await this.store.savePlayer(player.userIndex, {...player, isConnected: false});
-        }
-    }
-
-    async onServerStopped() {
-        const players = this.store.all();
-
-        for (const player of players) {
-            await this.store.savePlayer(player.userIndex, {...player, isConnected: false});
-        }
     }
 
     _initPlayer(obj) {
@@ -143,12 +252,11 @@ export class VRisingPlayerManager extends EventEmitter {
 
         if (player) {
             if ((!player.characterName && characterName) || !player.hasLocalCharacter) {
-                this.logger.info('Update player with SteamID : %s, characterName: %s', steamID, characterName);
+                logger.info('Update player with SteamID : %s, characterName: %s', steamID, characterName);
                 player.characterName = characterName;
                 player.hasLocalCharacter = true;
                 player.shouldCreateCharacter = false;
 
-                await this.store.savePlayer(player.userIndex, player);
                 if (player.approvedUserIndex && this.playerMap.has(player.approvedUserIndex)) {
                     this.playerMap.set(player.approvedUserIndex, {
                         ...this.playerMap.get(player.approvedUserIndex),
@@ -158,14 +266,14 @@ export class VRisingPlayerManager extends EventEmitter {
 
                 this.emit('player_updated', player);
             } else {
-                this.logger.debug('Player with steamID %s is already named %s', steamID, characterName);
+                logger.debug('Player with steamID %s is already named %s', steamID, characterName);
             }
         } else {
-            this.logger.warn('Unknown player with steamID %s', steamID);
+            logger.warn('Unknown player with steamID %s', steamID);
         }
     }
 
-    async parseDetectedPlayer([, steamIdx, approvedUserIndex, hasLocalCharacter, steamID, userIndex, shouldCreateCharacter, isAdmin]) {
+    parseDetectedPlayer([, steamIdx, approvedUserIndex, hasLocalCharacter, steamID, userIndex, shouldCreateCharacter, isAdmin]) {
         userIndex = parseInt(userIndex);
         approvedUserIndex = parseInt(approvedUserIndex);
         shouldCreateCharacter = shouldCreateCharacter === 'True';
@@ -201,16 +309,16 @@ export class VRisingPlayerManager extends EventEmitter {
             }
         }
 
-        await this.store.savePlayer(userIndex, player);
-
         this.playerMap.set(approvedUserIndex, player);
 
-        this.logger.info('Player %d detected with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
+        logger.info('Player %d detected with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
+
+        this.emit('detected_player', player);
 
         return player;
     }
 
-    async parsePlayerInfo([, steamIdx, steamID, approvedUserIndex, characterName, userIndex, , entityId]) {
+    parsePlayerInfo([, steamIdx, steamID, approvedUserIndex, characterName, userIndex, , entityId]) {
         userIndex = parseInt(userIndex);
         approvedUserIndex = parseInt(approvedUserIndex);
         characterName = lodash.isEmpty(characterName) ? null : characterName;
@@ -250,18 +358,20 @@ export class VRisingPlayerManager extends EventEmitter {
             }
         }
 
-        await this.store.savePlayer(userIndex, player);
-
         this.playerMap.set(approvedUserIndex, player);
 
-        this.logger.info('Player %d updated with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
+        logger.info('Player %d updated with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
 
-        this.emit('player_connected', player);
+        if (player.isConnected) {
+            this.emit('player_connected', player);
+        } else {
+            this.emit('player_info', player);
+        }
 
         return player;
     }
 
-    async parseReconnectedPlayer([, steamIdx, approvedUserIndex, hasLocalCharacter, steamID, userIndex, shouldCreateCharacter, isAdmin]) {
+    parseReconnectedPlayer([, steamIdx, approvedUserIndex, hasLocalCharacter, steamID, userIndex, shouldCreateCharacter, isAdmin]) {
         approvedUserIndex = parseInt(approvedUserIndex);
         userIndex = parseInt(userIndex);
         hasLocalCharacter = hasLocalCharacter === 'True';
@@ -301,18 +411,16 @@ export class VRisingPlayerManager extends EventEmitter {
             }
         }
 
-        await this.store.savePlayer(userIndex, player);
-
         this.playerMap.set(approvedUserIndex, player);
 
-        this.logger.info('Player %d reconnect with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
+        logger.info('Player %d reconnect with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
 
-        this.emit('player_connected', player);
+        this.emit('player_reconnected', player);
 
         return player;
     }
 
-    async parseDisconnectedPlayer([, , approvedUserIndex, reason]) {
+    parseDisconnectedPlayer([, , approvedUserIndex, reason]) {
         approvedUserIndex = parseInt(approvedUserIndex);
 
         if (this.playerMap.has(approvedUserIndex)) {
@@ -320,34 +428,31 @@ export class VRisingPlayerManager extends EventEmitter {
             const savedPlayer = this.store.getPlayer(player.userIndex);
 
             if (player.userIndex !== savedPlayer.userIndex) {
-                this.logger.warn('There is a discrepancy between approved user %d and user index %d', approvedUserIndex, player.userIndex);
+                logger.warn('There is a discrepancy between approved user %d and user index %d', approvedUserIndex, player.userIndex);
             } else {
                 player.isConnected = false;
                 player.disconnectedAt = new Date();
                 player.disconnectReason = reason;
+                player.approvedUserIndex = null;
 
-                if (player.userIndex) {
-                    player.approvedUserIndex = null;
-                    await this.store.savePlayer(player.userIndex, player);
-                }
                 this.playerMap.delete(approvedUserIndex);
-                this.logger.info('Player approvedUserIndex=%d, userIndex=%d, characterName=%s is disconnected with reason %s !', approvedUserIndex, player.userIndex, player.characterName, reason);
+                logger.info('Player approvedUserIndex=%d, userIndex=%d, characterName=%s is disconnected with reason %s !', approvedUserIndex, player.userIndex, player.characterName, reason);
                 this.emit('player_disconnected', player);
             }
         } else {
-            this.logger.info('Could not find player with approved user index %d', approvedUserIndex);
+            logger.info('Could not find player with approved user index %d', approvedUserIndex);
         }
     }
 
-    getAllPlayers() {
-        return this.store.all().filter(player => player.hasLocalCharacter);
-    }
-
-    getConnectedPlayers() {
-        return this.store.all().filter(player => player.isConnected);
-    }
-
-    isPlayer(steamID) {
-        return this.store.all().some(player => player.steamID === steamID);
+    async parseLogLine(line) {
+        for (const {regex, parse} of this.regexArray) {
+            const matches = regex.exec(line);
+            if (matches && matches.length > 0) {
+                await parse(matches, line);
+                regex.lastIndex = 0;
+                break;
+            }
+            regex.lastIndex = 0;
+        }
     }
 }

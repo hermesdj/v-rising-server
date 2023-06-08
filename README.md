@@ -274,3 +274,4 @@ Les fichiers PVC et secrets doivent être déployés séparément avant le lance
 - Tester https://www.npmjs.com/package/steam-server-query pour exploiter le QueryPort et interroger le serveur !
 - Exploiter les Remote URL pour les admins et les banned plutôt que par le fichier banned ou adminlist !
 - Possibilité de télécharger les fichiers de settings depuis le client web et les enregistrer 
+- Gérer la version de BepInEx et la version des mods installés

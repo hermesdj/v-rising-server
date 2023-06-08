@@ -2,7 +2,6 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import {EventEmitter} from 'events';
 import {logger} from "../logger.js";
-import {sleep} from "./utils.js";
 import {
     LogWatcher,
     VRisingPlayerManager,
@@ -12,10 +11,11 @@ import {
     VRisingSettingsManager,
     VRisingUserManager
 } from "./managers/index.js";
-import {VRisingServerApiClient} from "./metrics/api.js";
 import {VRisingSteamQuery} from "./steam/query.js";
 import {VRisingOperationManager} from "./operations/operation-manager.js";
 import {VRisingModManager} from "./mods/mod-manager.js";
+import {VRisingApiClient} from "./api/api-client.js";
+import {VRisingClanManager} from "./managers/clan-manager.js";
 
 dayjs.extend(utc);
 
@@ -57,9 +57,10 @@ export class VRisingServer extends EventEmitter {
 
         this.settingsManager = new VRisingSettingsManager(config, this);
         this.processManager = new VRisingProcess(config, this);
-        this.playerManager = new VRisingPlayerManager(this);
+        this.apiClient = new VRisingApiClient(this);
+        this.playerManager = new VRisingPlayerManager(this, this.apiClient);
+        this.clanManager = new VRisingClanManager(this, this.playerManager, this.apiClient);
         this.autoSaveManager = new VRisingSaveManager(config, this, this.settingsManager);
-        this.apiClient = new VRisingServerApiClient(this);
         this.rConClient = new VRisingRConClient(config, this);
         this.steamQuery = new VRisingSteamQuery(this);
         this.userManager = new VRisingUserManager(this);
@@ -134,7 +135,6 @@ export class VRisingServer extends EventEmitter {
     setConfig(config) {
         this.config = {...config};
         this.emit('config_updated', this.config);
-        this.apiClient.updateOptions(config.server.api);
         this._updateServerInfo({
             serverName: config.server.name,
             saveName: config.server.saveName,
@@ -241,10 +241,6 @@ export class VRisingServer extends EventEmitter {
             });
         }
     }
-
-    async parseLogLine(line) {
-        return this.logParser.parseLogLine(line);
-    }
 }
 
 class VRisingServerLogParser {
@@ -311,6 +307,7 @@ class VRisingServerLogParser {
                         state: 'online',
                         isSaveVersionIdentical: loadedSaveGameVersion === currentGameVersion
                     });
+                    this.server.emit('online', this.server.getServerInfo());
                 }
             },
             {

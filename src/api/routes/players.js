@@ -1,10 +1,19 @@
 import Router from "express-promise-router";
-import {ensureAdmin} from "./utils.js";
+import {ensureAdmin, ensureAuthenticated} from "./utils.js";
 
 const router = Router();
 
 router.get('/', (req, res) => {
     res.json(req.vRisingServer.playerManager.getAllPlayers());
+});
+
+router.get('/:userIndex', ensureAuthenticated, (req, res) => {
+    const userIndex = parseInt(req.params.userIndex, 10);
+    const player = req.vRisingServer.playerManager.getPlayer(userIndex);
+    if (player.clanId) {
+        player.clan = req.vRisingServer.clanManager.getClan(player.clanId);
+    }
+    res.json(player);
 });
 
 router.post('/:steamID/set-admin', ensureAdmin, async (req, res) => {
