@@ -9,6 +9,7 @@ import metrics from "./metrics.js";
 import logs from "./logs.js";
 import mods from "./mods.js";
 import operations from "./operations.js";
+import clans from "./clans.js";
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/metrics', metrics);
 router.use('/logs', logs);
 router.use('/mods', mods);
 router.use('/operations', operations);
+router.use('/clans', clans);
 
 export default router;

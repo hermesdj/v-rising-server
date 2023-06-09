@@ -78,10 +78,34 @@ export class VRisingClanManager extends EventEmitter {
     }
 
     getClan(clanId) {
-        return this.store.get(clanId);
+        const clan = this.store.get(clanId);
+
+        if (clan) {
+            clan.players = clan.playerIds.map(id => this.playerManager.store.getPlayer(id));
+        }
+
+        return clan;
     }
 
     listAllClans() {
         return this.store.all();
+    }
+
+    async updateClanName(clanId, newClanName) {
+        const {clan} = await this.apiClient.clans.updateClanName(clanId, newClanName);
+        await this.store.set(clanId, {
+            ...this.store.get(clanId),
+            ...clan
+        });
+        return this.store.get(clanId);
+    }
+
+    async updateClanDescription(clanId, newClanName) {
+        const {clan} = await this.apiClient.clans.updateClanDescription(clanId, newClanName);
+        await this.store.set(clanId, {
+            ...this.store.get(clanId),
+            ...clan
+        });
+        return this.store.get(clanId);
     }
 }

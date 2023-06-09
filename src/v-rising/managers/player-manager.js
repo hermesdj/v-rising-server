@@ -280,34 +280,17 @@ class PlayerLogParser extends EventEmitter {
         hasLocalCharacter = hasLocalCharacter === 'True';
         isAdmin = isAdmin === 'True';
 
-        let player = this.store.getPlayer(userIndex);
-
-        if (!player) {
-            player = this._initPlayer({
-                userIndex,
-                steamIdx,
-                approvedUserIndex,
-                hasLocalCharacter,
-                steamID,
-                shouldCreateCharacter,
-                isAdmin,
-                connectedAt: new Date(),
-                isConnected: true
-            });
-        } else {
-            player = {
-                ...player,
-                steamID,
-                isAdmin,
-                userIndex,
-                steamIdx,
-                hasLocalCharacter,
-                shouldCreateCharacter,
-                isConnected: true,
-                disconnectReason: null,
-                disconnectedAt: null
-            }
-        }
+        const player = this._initPlayer({
+            userIndex,
+            steamIdx,
+            approvedUserIndex,
+            hasLocalCharacter,
+            steamID,
+            shouldCreateCharacter,
+            isAdmin,
+            connectedAt: new Date(),
+            isConnected: true
+        });
 
         this.playerMap.set(approvedUserIndex, player);
 
@@ -323,6 +306,7 @@ class PlayerLogParser extends EventEmitter {
         approvedUserIndex = parseInt(approvedUserIndex);
         characterName = lodash.isEmpty(characterName) ? null : characterName;
 
+        // FIXME There is no store here
         let player = this.store.getPlayer(userIndex);
 
         if (!characterName && player && player.characterName) {
@@ -378,6 +362,7 @@ class PlayerLogParser extends EventEmitter {
         shouldCreateCharacter = shouldCreateCharacter === 'True';
         isAdmin = isAdmin === 'True';
 
+        // FIXME There is no store here, rewrite
         let player = this.store.getPlayer(userIndex);
 
         if (!player) {
@@ -425,6 +410,8 @@ class PlayerLogParser extends EventEmitter {
 
         if (this.playerMap.has(approvedUserIndex)) {
             const player = this.playerMap.get(approvedUserIndex);
+
+            // FIXME No store here
             const savedPlayer = this.store.getPlayer(player.userIndex);
 
             if (player.userIndex !== savedPlayer.userIndex) {
