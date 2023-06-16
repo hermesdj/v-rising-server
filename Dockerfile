@@ -1,8 +1,8 @@
 FROM ubuntu:22.04
 LABEL maintainer="Jérémy Dallard"
-VOLUME ["/mnt/vrising/server", "/mnt/vrising/persistentdata"]
+VOLUME ["/mnt/vrising/server", "/mnt/vrising/persistentdata", "/mnt/vrising/backups", "/usr/src/vrising-api/data"]
 
-ENV NODE_VERSION=18.12.0
+ENV NODE_VERSION=18.16.0
 
 ARG DEBIAN_FRONTEND="noninteractive"
 
@@ -57,7 +57,6 @@ COPY main.js .
 COPY bin/start.sh .
 COPY settings settings/
 COPY public public/
-RUN mkdir data
 RUN mkdir logs
 
 RUN mkdir -p /root/.steam/root

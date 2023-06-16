@@ -4,7 +4,7 @@ export class VRisingClanApiClient {
     }
 
     getAllClans() {
-        return this.apiClient.execGet('v-rising-server-api/clans');
+        return this.apiClient.execGet('v-rising-server-api/clans/');
     }
 
     getClanById(clanId) {

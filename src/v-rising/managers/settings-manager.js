@@ -12,11 +12,13 @@ export class VRisingSettingsManager extends EventEmitter {
     constructor(config, server) {
         super();
         this.server = server;
-        this.updateConfig(config);
 
         this.serverConfig = {};
         this.apiConfig = {};
         this.config = {};
+        this.rconConfig = {};
+
+        this.updateConfig(config);
 
         this.gameSettings = {
             current: null,
@@ -31,9 +33,9 @@ export class VRisingSettingsManager extends EventEmitter {
             {path: 'hostSettings.Password', configPath: 'password'},
             {path: 'hostSettings.SaveName', configPath: 'saveName'},
             {path: 'hostSettings.Name', configPath: 'name'},
-            {path: 'hostSettings.RemoteBansURL', value: `http://localhost:${config.api.port}/api/users/banned`},
-            {path: 'hostSettings.RemoteAdminsURL', value: `http://localhost:${config.api.port}/api/users/admins`}
-        ]
+            {path: 'hostSettings.RemoteBansURL', value: () => `http://localhost:${this.apiConfig.port}/api/users/banned`},
+            {path: 'hostSettings.RemoteAdminsURL', value: () => `http://localhost:${this.apiConfig.port}/api/users/admins`}
+        ];
 
         server.on('config_updated', config => this.updateConfig(config));
         server.on('server_started', () => this.onServerStarted());
@@ -72,6 +74,7 @@ export class VRisingSettingsManager extends EventEmitter {
 
         this.serverConfig = config.server;
         this.apiConfig = config.api;
+        this.rconConfig = config.rcon;
     }
 
     getSettings() {
@@ -142,7 +145,8 @@ export class VRisingSettingsManager extends EventEmitter {
         let isModified = false;
 
         for (const {path, configPath, value} of this.settingsSync) {
-            const configValue = configPath ? lodash.get(this.serverConfig, configPath) : value;
+            const val = lodash.isFunction(value) ? value(this) : value;
+            const configValue = configPath ? lodash.get(this.serverConfig, configPath) : val;
             const settingsValue = lodash.get(settings, path);
 
             if (configValue !== settingsValue) {
@@ -191,9 +195,9 @@ export class VRisingSettingsManager extends EventEmitter {
         if (!defaultHostSettings.Rcon) {
             defaultHostSettings.Rcon = {};
         }
-        defaultHostSettings.Rcon.Password = this.serverConfig.rcon.password;
-        defaultHostSettings.Rcon.Port = this.serverConfig.rcon.port;
-        defaultHostSettings.Rcon.Enabled = this.serverConfig.rcon.enabled;
+        defaultHostSettings.Rcon.Password = this.rconConfig.password;
+        defaultHostSettings.Rcon.Port = this.rconConfig.port;
+        defaultHostSettings.Rcon.Enabled = this.rconConfig.enabled;
 
         await this._writeServerSettings(defaultHostSettings, this.config.hostSettingsFileName);
 
@@ -216,7 +220,7 @@ export class VRisingSettingsManager extends EventEmitter {
     }
 
     async _readDefaultSettingsFile(fileName) {
-        const content = await fs.promises.readFile(path.join(__dirname, '..', '..', 'settings', fileName), 'utf8');
+        const content = await fs.promises.readFile(path.join(__dirname, '..', '..', '..', 'settings', fileName), 'utf8');
         return JSON.parse(content);
     }
 

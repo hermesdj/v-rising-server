@@ -3,6 +3,7 @@ import lodash from 'lodash';
 import {DbManager} from "../../db-manager.js";
 import {logger} from "../../logger.js";
 import {sleep} from "../utils.js";
+import {LogParser} from "./log-parser.js";
 
 class PlayerStore {
     constructor() {
@@ -56,27 +57,17 @@ export class VRisingPlayerManager extends EventEmitter {
         this.server.on('online', () => this.onServerOnline());
         this.server.on('server_stopped', () => this.onServerStopped());
 
-        this.logParser.on('player_updated', player => this._updatePlayer('player_updated', player));
-        this.logParser.on('detected_player', player => this._updatePlayer('player_updated', player));
         this.logParser.on('player_connected', player => this._updatePlayer('player_connected', player));
-        this.logParser.on('player_info', player => this._updatePlayer('player_updated', player));
-        this.logParser.on('player_reconnected', player => this._updatePlayer('player_connected', player));
         this.logParser.on('player_disconnected', player => this._updatePlayer('player_disconnected', player));
     }
 
     async _updatePlayer(event, player) {
         if (event && player && player.userIndex !== null) {
-            let storedPlayer = this.store.getPlayer(player.userIndex);
+            const syncedPlayer = await this.updatePlayerFromApi(player.userIndex, player);
+            await this.store.savePlayer(player.userIndex, syncedPlayer);
 
-            if (!storedPlayer) {
-                const syncedPlayer = await this.updatePlayerFromApi(player.userIndex, player);
-                await this.store.savePlayer(player.userIndex, syncedPlayer);
-            } else if (!lodash.isEqual(player, storedPlayer)) {
-                await this.store.savePlayer(storedPlayer.userIndex, {
-                    ...storedPlayer,
-                    ...player
-                });
-            }
+            const storedPlayer = this.store.getPlayer(syncedPlayer.userIndex);
+            this.emit(event, storedPlayer);
         }
     }
 
@@ -158,7 +149,7 @@ export class VRisingPlayerManager extends EventEmitter {
         }
     }
 
-    getPlayer(userIndex){
+    getPlayer(userIndex) {
         return this.store.getPlayer(userIndex);
     }
 
@@ -175,184 +166,97 @@ export class VRisingPlayerManager extends EventEmitter {
     }
 }
 
-class PlayerLogParser extends EventEmitter {
+class PlayerLogParser extends LogParser {
     constructor() {
-        super();
-
-        this.playerMap = new Map();
-
-        this.regexArray = [
+        super([
             {
                 regex: /NetEndPoint '{Steam (\d*)}' .* approvedUserIndex: (\d*) HasLocalCharacter: (True|False) .* PlatformId: (\d*) UserIndex: (\d*) ShouldCreateCharacter: (True|False) IsAdmin: (True|False)/g,
                 parse: async (matches) => {
-                    await this.parseDetectedPlayer(matches);
+                    this.parseConnectedPlayer(matches);
                 }
             },
             {
                 regex: /User '{Steam (\d*)}' '(\d*)', approvedUserIndex: (\d*), Character: '(.*)' connected as ID '(\d*),(\d*)', Entity '(\d*),(\d*)'\./g,
                 parse: async (matches) => {
-                    await this.parsePlayerInfo(matches);
+                    this.parseConnectedCharacter(matches);
                 }
             },
             {
                 regex: /User '{Steam (\d*)}' disconnected. approvedUserIndex: (\d*) Reason: (.*)/g,
                 parse: async (matches) => {
-                    await this.parseDisconnectedPlayer(matches);
+                    this.parseDisconnectedPlayer(matches);
                 }
             },
             {
                 regex: /NetEndPoint '{Steam (\d*)}' reconnect was approved\. approvedUserIndex: (\d*) HasLocalCharacter: (True|False) Hail Message Size: \d* Version: \d* PlatformId: (\d*) UserIndex: (\d) ShouldCreateCharacter: (True|False) IsAdmin: (True|False) Length: \d*\n/g,
                 parse: async (matches) => {
-                    await this.parseReconnectedPlayer(matches);
-                }
-            },
-            {
-                regex: /User\s(\d*)\s\(Character: (.*)\) has begun its spawn fadeout!$/g,
-                parse: async (matches) => {
-                    await this.parseCharacterNameAndSteamId(matches);
-                }
-            },
-            {
-                regex: /User\s(\d*)\s\(Character: ([a-zA-Z]*)\) has been hidden due to waiting for content!$/g,
-                parse: async (matches) => {
-                    await this.parseCharacterNameAndSteamId(matches);
-                }
-            },
-            {
-                regex: /Spawned character at chunk '\d*,\d*' for user (\d*) \(Character: (.*)\) entity '\d*,\d*' hasCastleSpawn: (False|True) netherSpawnPositionEntity: (\d*) spawnLocation: .* firstTimeSpawn: (False|True)/g,
-                parse: async (matches) => {
-                    await this.parseCharacterNameAndSteamId(matches);
+                    this.parseReconnectedPlayer(matches);
                 }
             }
-        ];
+        ]);
+
+        this.playerMap = new Map();
     }
 
-    _initPlayer(obj) {
-        return lodash.defaults(obj, {
-            userIndex: null,
-            steamIdx: null,
-            steamID: null,
-            approvedUserIndex: null,
-            hasLocalCharacter: false,
-            shouldCreateCharacter: false,
-            isAdmin: false,
-            isBanned: false,
-            characterName: null,
-            entityId: null,
-            connectedAt: null,
-            isConnected: false,
-            disconnectedAt: null,
-            disconnectReason: null
-        })
-    }
-
-    async parseCharacterNameAndSteamId([, steamID, characterName]) {
-        const player = this.store.findPlayerBySteamID(steamID);
-        characterName = lodash.isEmpty(characterName) ? null : characterName;
-
-        if (player) {
-            if ((!player.characterName && characterName) || !player.hasLocalCharacter) {
-                logger.info('Update player with SteamID : %s, characterName: %s', steamID, characterName);
-                player.characterName = characterName;
-                player.hasLocalCharacter = true;
-                player.shouldCreateCharacter = false;
-
-                if (player.approvedUserIndex && this.playerMap.has(player.approvedUserIndex)) {
-                    this.playerMap.set(player.approvedUserIndex, {
-                        ...this.playerMap.get(player.approvedUserIndex),
-                        characterName
-                    })
-                }
-
-                this.emit('player_updated', player);
-            } else {
-                logger.debug('Player with steamID %s is already named %s', steamID, characterName);
-            }
+    _initPlayer(approvedUserIndex, obj) {
+        if (this.playerMap.has(approvedUserIndex)) {
+            this.playerMap.set(approvedUserIndex, {
+                ...this.playerMap.get(approvedUserIndex),
+                ...obj
+            });
         } else {
-            logger.warn('Unknown player with steamID %s', steamID);
+            this.playerMap.set(approvedUserIndex, lodash.defaults(obj, {
+                userIndex: null,
+                steamIdx: null,
+                steamID: null,
+                approvedUserIndex: null,
+                hasLocalCharacter: false,
+                shouldCreateCharacter: false,
+                isAdmin: false,
+                isBanned: false,
+                characterName: null,
+                entityId: null,
+                disconnectReason: null
+            }));
         }
+        return this.playerMap.get(approvedUserIndex)
     }
 
-    parseDetectedPlayer([, steamIdx, approvedUserIndex, hasLocalCharacter, steamID, userIndex, shouldCreateCharacter, isAdmin]) {
+    parseConnectedPlayer([, steamIdx, approvedUserIndex, hasLocalCharacter, steamID, userIndex, shouldCreateCharacter, isAdmin]) {
         userIndex = parseInt(userIndex);
         approvedUserIndex = parseInt(approvedUserIndex);
         shouldCreateCharacter = shouldCreateCharacter === 'True';
         hasLocalCharacter = hasLocalCharacter === 'True';
         isAdmin = isAdmin === 'True';
 
-        const player = this._initPlayer({
+        const player = this._initPlayer(approvedUserIndex, {
             userIndex,
             steamIdx,
             approvedUserIndex,
             hasLocalCharacter,
             steamID,
             shouldCreateCharacter,
-            isAdmin,
-            connectedAt: new Date(),
-            isConnected: true
+            isAdmin
         });
 
-        this.playerMap.set(approvedUserIndex, player);
-
-        logger.info('Player %d detected with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
-
-        this.emit('detected_player', player);
-
-        return player;
+        this.emit('player_connected', player);
     }
 
-    parsePlayerInfo([, steamIdx, steamID, approvedUserIndex, characterName, userIndex, , entityId]) {
+    parseConnectedCharacter([, steamIdx, steamID, approvedUserIndex, characterName, userIndex, , entityId]) {
         userIndex = parseInt(userIndex);
         approvedUserIndex = parseInt(approvedUserIndex);
         characterName = lodash.isEmpty(characterName) ? null : characterName;
 
-        // FIXME There is no store here
-        let player = this.store.getPlayer(userIndex);
+        const player = this._initPlayer(approvedUserIndex, {
+            userIndex,
+            steamIdx,
+            approvedUserIndex,
+            steamID,
+            characterName,
+            entityId
+        });
 
-        if (!characterName && player && player.characterName) {
-            characterName = player.characterName;
-        }
-
-        if (!player) {
-            player = this._initPlayer({
-                userIndex,
-                steamIdx,
-                approvedUserIndex,
-                steamID,
-                characterName,
-                entityId,
-                isConnected: true,
-                connectedAt: new Date()
-            });
-        } else {
-            player = {
-                ...player,
-                steamID,
-                steamIdx,
-                characterName,
-                userIndex,
-                entityId,
-                disconnectedAt: null,
-                disconnectReason: null
-            }
-
-            if (!player.isConnected || !player.connectedAt) {
-                player.isConnected = true;
-                player.connectedAt = new Date();
-            }
-        }
-
-        this.playerMap.set(approvedUserIndex, player);
-
-        logger.info('Player %d updated with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
-
-        if (player.isConnected) {
-            this.emit('player_connected', player);
-        } else {
-            this.emit('player_info', player);
-        }
-
-        return player;
+        this.emit('player_connected', player);
     }
 
     parseReconnectedPlayer([, steamIdx, approvedUserIndex, hasLocalCharacter, steamID, userIndex, shouldCreateCharacter, isAdmin]) {
@@ -362,47 +266,17 @@ class PlayerLogParser extends EventEmitter {
         shouldCreateCharacter = shouldCreateCharacter === 'True';
         isAdmin = isAdmin === 'True';
 
-        // FIXME There is no store here, rewrite
-        let player = this.store.getPlayer(userIndex);
+        const player = this._initPlayer(approvedUserIndex, {
+            steamID,
+            steamIdx,
+            approvedUserIndex,
+            hasLocalCharacter,
+            userIndex,
+            shouldCreateCharacter,
+            isAdmin
+        });
 
-        if (!player) {
-            player = this._initPlayer({
-                steamID,
-                steamIdx,
-                approvedUserIndex,
-                hasLocalCharacter,
-                userIndex,
-                shouldCreateCharacter,
-                isAdmin,
-                isConnected: true,
-                connectedAt: new Date(),
-                disconnectedAt: null,
-                disconnectReason: null
-            })
-        } else {
-            player = {
-                ...player,
-                steamID,
-                steamIdx,
-                approvedUserIndex,
-                hasLocalCharacter,
-                userIndex,
-                shouldCreateCharacter,
-                isAdmin,
-                isConnected: true,
-                connectedAt: new Date(),
-                disconnectedAt: null,
-                disconnectReason: null
-            }
-        }
-
-        this.playerMap.set(approvedUserIndex, player);
-
-        logger.info('Player %d reconnect with userIndex %d and characterName %s', approvedUserIndex, player.userIndex, player.characterName);
-
-        this.emit('player_reconnected', player);
-
-        return player;
+        this.emit('player_connected', player);
     }
 
     parseDisconnectedPlayer([, , approvedUserIndex, reason]) {
@@ -410,36 +284,11 @@ class PlayerLogParser extends EventEmitter {
 
         if (this.playerMap.has(approvedUserIndex)) {
             const player = this.playerMap.get(approvedUserIndex);
-
-            // FIXME No store here
-            const savedPlayer = this.store.getPlayer(player.userIndex);
-
-            if (player.userIndex !== savedPlayer.userIndex) {
-                logger.warn('There is a discrepancy between approved user %d and user index %d', approvedUserIndex, player.userIndex);
-            } else {
-                player.isConnected = false;
-                player.disconnectedAt = new Date();
-                player.disconnectReason = reason;
-                player.approvedUserIndex = null;
-
-                this.playerMap.delete(approvedUserIndex);
-                logger.info('Player approvedUserIndex=%d, userIndex=%d, characterName=%s is disconnected with reason %s !', approvedUserIndex, player.userIndex, player.characterName, reason);
-                this.emit('player_disconnected', player);
-            }
+            this.playerMap.delete(approvedUserIndex);
+            logger.info('Player approvedUserIndex=%d, userIndex=%d, is disconnected with reason %s !', approvedUserIndex, player.userIndex, player.characterName, reason);
+            this.emit('player_disconnected', player.userIndex);
         } else {
-            logger.info('Could not find player with approved user index %d', approvedUserIndex);
-        }
-    }
-
-    async parseLogLine(line) {
-        for (const {regex, parse} of this.regexArray) {
-            const matches = regex.exec(line);
-            if (matches && matches.length > 0) {
-                await parse(matches, line);
-                regex.lastIndex = 0;
-                break;
-            }
-            regex.lastIndex = 0;
+            logger.warn('Could not find player with approved user index %d', approvedUserIndex);
         }
     }
 }

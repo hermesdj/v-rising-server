@@ -17,6 +17,8 @@ export class LogWatcher extends EventEmitter {
         this.logFilePath = null;
         this.waitForFileTimeout = 600000;
 
+        this.logParsers = [];
+
         server.on('config_updated', config => this.onConfig(config.server));
         server.on('server_stopped', () => this.stopWatching());
     }
@@ -70,6 +72,11 @@ export class LogWatcher extends EventEmitter {
             throw new Error('Log file does not exists after timeout !');
         }
 
+        this.logParsers = [
+            this.server.logParser,
+            this.server.playerManager.logParser
+        ];
+
         this._watchLogLines()
             .then(() => {
                 this.emit('log_watch_ended');
@@ -81,9 +88,18 @@ export class LogWatcher extends EventEmitter {
 
     async _watchLogLines() {
         for await (const line of this.logLines()) {
-            const newLine = line.replace(/\r?\n/g, '\n');
-            await this.server.logParser.parseLogLine(newLine);
-            await this.server.playerManager.logParser.parseLogLine(newLine);
+            try {
+                if (line) {
+                    const newLine = line.replace(/\r?\n/g, '\n');
+                    for (const logParser of this.logParsers) {
+                        if (logParser.parseLogLine(newLine)) {
+                            break;
+                        }
+                    }
+                }
+            } catch (err) {
+                logger.error('Error parsing line %s', err.message);
+            }
         }
     }
 

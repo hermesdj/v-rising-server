@@ -4,7 +4,7 @@ export class VRisingPlayersApiClient {
     }
 
     getAllPlayers() {
-        return this.apiClient.execGet('v-rising-server-api/players');
+        return this.apiClient.execGet('v-rising-server-api/players/');
     }
 
     getConnectedPlayers() {

@@ -73,12 +73,12 @@ export const loadServerConfig = () => {
             },
             mods: {
                 enabled: env.get('V_RISING_MODS_ENABLED').default('true').asBoolStrict(),
+                defaultMods: env.get('V_RISING_MODS_DEFAULT_MODS').default('[]').asJsonArray(),
                 thunderstore: {
                     url: env.get('V_RISING_MODS_THUNDERSTORE_URL').default('https://v-rising.thunderstore.io/api/v1').asUrlString()
                 },
                 bepinex: {
-                    url: env.get('V_RISING_MODS_BEPINEX_URL').default('https://github.com/decaprime/VRising-Modding/releases/download/1.668.2/BepInEx_V_Rising_Experimental_Dev_1.668.2.zip').asUrlString(),
-                    defaultPlugins: env.get('V_RISING_MODS_BEPINEX_DEFAULT_PLUGINS').default('[]').asJsonArray()
+                    url: env.get('V_RISING_MODS_BEPINEX_URL').default('https://github.com/decaprime/VRising-Modding/releases/download/1.668.5/BepInEx-BepInExPack_V_Rising-1.668.5.zip').asUrlString(),
                 }
             }
         },

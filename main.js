@@ -25,7 +25,7 @@ import {DbManager} from "./src/db-manager.js";
     if (config.server.runOnStartup) {
         vRisingServer.startServer()
             .then(() => logger.info('VRising Server autostart successfull !'))
-            .catch(() => logger.error('Error starting V Rising Server !'));
+            .catch((err) => logger.error(err, `Error starting V Rising Server : ${err.message}`));
     } else {
         logger.warn('Server is configured to not run the V Rising Server on startup');
     }

@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
+import lodash from "lodash";
 import {EventEmitter} from 'events';
 import {logger} from "../logger.js";
 import {
@@ -16,8 +17,24 @@ import {VRisingOperationManager} from "./operations/operation-manager.js";
 import {VRisingModManager} from "./mods/mod-manager.js";
 import {VRisingApiClient} from "./api/api-client.js";
 import {VRisingClanManager} from "./managers/clan-manager.js";
+import {LogParser} from "./managers/log-parser.js";
 
 dayjs.extend(utc);
+
+export const serverStates = {
+    ONLINE: 'online',
+    OFFLINE: 'offline',
+    PROCESS_STARTED: 'process_started',
+    UPDATING: 'updating',
+    UPDATED: 'updated',
+    ERROR: 'error',
+    CHECKING_MODS: 'checking_mods',
+    EXITING: 'exiting',
+    SETUP_COMPLETE: 'setup_complete',
+    FINISHING_LOADING: 'finishing_loading',
+    STARTING: 'starting',
+    STOPPING: 'stopping'
+};
 
 /**
  * VRising Server class
@@ -28,7 +45,7 @@ export class VRisingServer extends EventEmitter {
         super();
         this.discordBot = discordBot;
         this.serverInfo = {
-            state: 'offline',
+            state: serverStates.OFFLINE,
             serverName: config.server.name,
             saveName: config.server.saveName,
             time: null,
@@ -75,7 +92,7 @@ export class VRisingServer extends EventEmitter {
 
         this.processManager.on('started', pid => this._updateServerInfo({
             pid,
-            state: 'process_started',
+            state: serverStates.PROCESS_STARTED,
             processExitCode: null,
             processError: null
         }));
@@ -83,28 +100,28 @@ export class VRisingServer extends EventEmitter {
         this.processManager.on('steam_state_updated', steamState => {
             if (steamState.processing) {
                 this._updateServerInfo({
-                    state: 'updating'
+                    state: serverStates.UPDATING
                 });
             }
 
             if (steamState.success) {
                 this._updateServerInfo({
-                    state: 'updated'
+                    state: serverStates.UPDATED
                 })
             }
         });
 
-        this.processManager.on('mods_check', () => this._updateServerInfo({state: 'checking_mods'}))
+        this.processManager.on('mods_check', () => this._updateServerInfo({state: serverStates.CHECKING_MODS}))
 
         this.processManager.on('process_error', err => this._updateServerInfo({
             processError: err.message,
-            state: 'error'
+            state: serverStates.ERROR
         }));
 
-        this.processManager.on('exiting', () => this._updateServerInfo({state: 'exiting'}));
+        this.processManager.on('exiting', () => this._updateServerInfo({state: serverStates.EXITING}));
 
         this.processManager.on('process_stopped', code => this._updateServerInfo({
-            state: 'offline',
+            state: serverStates.OFFLINE,
             time: null,
             version: null,
             steamID: null,
@@ -144,19 +161,31 @@ export class VRisingServer extends EventEmitter {
     }
 
     _updateServerInfo(data) {
+        const previousState = lodash.cloneDeep(this.serverInfo);
+
         this.serverInfo = {
             ...this.serverInfo,
             ...data
         };
 
-        logger.debug('New Server Info %j', this.serverInfo);
-        this.emit('server_info', this.serverInfo);
+        if (!lodash.isEqual(previousState, this.serverInfo)) {
+            logger.debug('New Server Info %j', this.serverInfo);
+            this.emit('server_info', this.serverInfo);
+
+            if (this.serverInfo.state !== previousState.state) {
+                logger.debug('emitting server event state %s', this.serverInfo.state);
+                this.emit(this.serverInfo.state, this.serverInfo);
+            } else if (data.state) {
+                logger.debug('State is still the same...');
+            }
+        }
+
         return this.serverInfo;
     }
 
     setSetupComplete() {
         this._updateServerInfo({
-            state: 'setup_complete',
+            state: serverStates.SETUP_COMPLETE,
             serverSetupComplete: true
         });
         logger.debug('VRising server setup is complete !');
@@ -206,7 +235,7 @@ export class VRisingServer extends EventEmitter {
         await this.logWatcher.startWatching();
 
         this.emit('server_started', {
-            state: 'starting',
+            state: serverStates.STARTING,
             serverInfo: this.serverInfo
         });
 
@@ -220,7 +249,7 @@ export class VRisingServer extends EventEmitter {
         this.userManager.onServerStopped();
 
         this.emit('server_stopped', {
-            state: 'stopping',
+            state: serverStats.STOPPING,
             serverInfo: this.getServerInfo(),
             ...this.settingsManager.getSettings(),
             ...this.userManager.getState()
@@ -241,13 +270,15 @@ export class VRisingServer extends EventEmitter {
             });
         }
     }
+
+    getServerState() {
+        return this.serverInfo.state || serverStates.OFFLINE;
+    }
 }
 
-class VRisingServerLogParser {
+class VRisingServerLogParser extends LogParser {
     constructor(server) {
-        this.server = server;
-
-        this.regexpArray = [
+        super([
             {
                 regex: /Bootstrap - Time: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}), Version: VRisingServer v([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\s\((\d{4}-\d{2}-\d{2}\s[0-9]{2}:[0-9]{2}\s[a-zA-Z]+)\)/g,
                 parse: ([, timeStr, version, versionDate]) => {
@@ -299,15 +330,40 @@ class VRisingServerLogParser {
             {
                 regex: /PersistenceV2 - GameVersion of Loaded Save: (.*), Current GameVersion: (.*)/g,
                 parse: ([, loadedSaveGameVersion, currentGameVersion]) => {
-                    logger.debug('GameVersion of Loaded Save matched, server is running !');
+                    logger.debug('GameVersion of Loaded Save matched !');
                     this.server._updateServerInfo({
                         loadedSaveGameVersion,
                         currentGameVersion,
                         isSaveLoaded: true,
-                        state: 'online',
+                        state: serverStates.FINISHING_LOADING,
                         isSaveVersionIdentical: loadedSaveGameVersion === currentGameVersion
                     });
-                    this.server.emit('online', this.server.getServerInfo());
+                }
+            },
+            {
+                regex: /PersistenceV2 - Finished Loading (\d*) Entities spread over (\d*) Archetypes\./g,
+                parse: ([, entityCount, archetypeCount]) => {
+                    logger.debug('Server has loaded %d entities over %d archetypes', entityCount, archetypeCount);
+                    if (this.server.getServerState() !== serverStates.ONLINE && this.server.getServerState() !== serverStates.ERROR) {
+                        this.server._updateServerInfo({
+                            state: serverStates.ONLINE
+                        })
+                    } else {
+                        logger.debug('Server state is %s', this.server.getServerState());
+                    }
+                }
+            },
+            {
+                regex: /Shutting down Asynchronous Streaming/g,
+                parse: () => {
+                    logger.debug('Server finished asynchronous streaming');
+                    if (this.server.getServerState() !== serverStates.ONLINE && this.server.getServerState() !== serverStates.ERROR) {
+                        this.server._updateServerInfo({
+                            state: serverStates.ONLINE
+                        })
+                    } else {
+                        logger.debug('Server state is %s', this.server.getServerState());
+                    }
                 }
             },
             {
@@ -339,18 +395,7 @@ class VRisingServerLogParser {
                     this.server.emit('rcon_service_ready', password);
                 }
             }
-        ]
-    }
-
-    async parseLogLine(line) {
-        for (const {regex, parse} of this.regexpArray) {
-            const matches = regex.exec(line);
-            if (matches && matches.length > 0) {
-                await parse(matches, line);
-                regex.lastIndex = 0;
-                break;
-            }
-            regex.lastIndex = 0;
-        }
+        ]);
+        this.server = server;
     }
 }

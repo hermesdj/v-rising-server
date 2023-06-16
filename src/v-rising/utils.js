@@ -6,6 +6,7 @@ import {mkdirp} from "mkdirp";
 import {logger} from "../logger.js";
 import os from "os";
 import {exec, spawn} from "child_process";
+import axios from "axios";
 
 export async function waitForFile(filePath, timeout) {
     let totalTime = 0;
@@ -165,4 +166,18 @@ export async function wrappedExecProcess(command) {
             resolve({stdout, stderr});
         });
     });
+}
+
+export async function downloadFileStream(name, url) {
+    const {data} = await axios.get(url, {
+        responseType: 'stream',
+        onDownloadProgress(progressEvent) {
+            logger.info('%s Archive download progress: %s', name, Number(progressEvent.progress).toLocaleString(undefined, {
+                style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2
+            }))
+        },
+        decompress: false
+    });
+
+    return data;
 }

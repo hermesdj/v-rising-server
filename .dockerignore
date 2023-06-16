@@ -1,5 +1,6 @@
 server-bin
 server-data
+server
 logs
 k8s
 data
